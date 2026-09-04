@@ -890,6 +890,88 @@
   },
   {
     "type": "function",
+    "name": "configureOracle",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "tuple",
+        "internalType": "struct PoolKey",
+        "components": [
+          {
+            "name": "currency0",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "currency1",
+            "type": "address",
+            "internalType": "Currency"
+          },
+          {
+            "name": "fee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "tickSpacing",
+            "type": "int24",
+            "internalType": "int24"
+          },
+          {
+            "name": "hooks",
+            "type": "address",
+            "internalType": "contract IHooks"
+          }
+        ]
+      },
+      {
+        "name": "cfg",
+        "type": "tuple",
+        "internalType": "struct OracleReference.Config",
+        "components": [
+          {
+            "name": "feed",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "feedDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "token0Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "token1Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "invert",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "maxTickDeviation",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "maxStaleness",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "configurePool",
     "inputs": [
       {
@@ -1067,6 +1149,62 @@
   },
   {
     "type": "function",
+    "name": "getOracleConfig",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "PoolId"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct OracleReference.Config",
+        "components": [
+          {
+            "name": "feed",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "feedDecimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "token0Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "token1Decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "invert",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "maxTickDeviation",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "maxStaleness",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getPoolConfig",
     "inputs": [
       {
@@ -1199,6 +1337,55 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "oracleConfig",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "PoolId"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "feed",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "feedDecimals",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "token0Decimals",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "token1Decimals",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "invert",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "maxTickDeviation",
+        "type": "uint24",
+        "internalType": "uint24"
+      },
+      {
+        "name": "maxStaleness",
+        "type": "uint32",
+        "internalType": "uint32"
       }
     ],
     "stateMutability": "view"
@@ -1513,6 +1700,56 @@
   },
   {
     "type": "event",
+    "name": "OracleConfigured",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "PoolId"
+      },
+      {
+        "name": "feed",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "maxTickDeviation",
+        "type": "uint24",
+        "indexed": false,
+        "internalType": "uint24"
+      },
+      {
+        "name": "maxStaleness",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OracleUnavailable",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "PoolId"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PoolConfigured",
     "inputs": [
       {
@@ -1578,43 +1815,6 @@
     "anonymous": false
   },
   {
-    "type": "event",
-    "name": "SwapRejected",
-    "inputs": [
-      {
-        "name": "poolId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "PoolId"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "reason",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum AegisHook.Reason"
-      },
-      {
-        "name": "observed",
-        "type": "int256",
-        "indexed": false,
-        "internalType": "int256"
-      },
-      {
-        "name": "bound",
-        "type": "int256",
-        "indexed": false,
-        "internalType": "int256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
     "type": "error",
     "name": "HookNotImplemented",
     "inputs": []
@@ -1638,6 +1838,27 @@
     "type": "error",
     "name": "NotPoolManager",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OracleDivergence",
+    "inputs": [
+      {
+        "name": "referenceTick",
+        "type": "int24",
+        "internalType": "int24"
+      },
+      {
+        "name": "observedTick",
+        "type": "int24",
+        "internalType": "int24"
+      },
+      {
+        "name": "bound",
+        "type": "uint24",
+        "internalType": "uint24"
+      }
+    ]
   },
   {
     "type": "error",

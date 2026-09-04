@@ -3,21 +3,23 @@ import {
   PoolConfigured,
   BlockCheckpointed,
   MevTaxApplied,
-  SwapRejected,
+  OracleUnavailable,
+  OracleConfigured,
   GuardianHalt,
 } from "../generated/AegisHook/AegisHook";
-import { Pool, MevTax, Rejection, BlockCheckpoint, PoolDayData } from "../generated/schema";
+import { Pool, MevTax, OracleSkipped, BlockCheckpoint, PoolDayData } from "../generated/schema";
 
 const SECONDS_PER_DAY = 86400;
 
-// Mirrors AegisHook.Reason. Kept as strings in the schema so a consumer never has to carry the
-// enum ordering; the agent layer and any dashboard read these directly.
-function reasonName(code: i32): string {
-  if (code == 1) return "PriceDeviation";
-  if (code == 2) return "VolumeLimit";
-  if (code == 3) return "GuardianHalt";
-  if (code == 4) return "PositionTooYoung";
-  return "None";
+// Mirrors OracleReference.Status. Kept as strings so a consumer never has to carry the enum
+// ordering; the agent layer and any dashboard read these directly.
+function statusName(code: i32): string {
+  if (code == 1) return "NotConfigured";
+  if (code == 2) return "StaleAnswer";
+  if (code == 3) return "InvalidAnswer";
+  if (code == 4) return "OutOfRange";
+  if (code == 5) return "BadConfig";
+  return "Ok";
 }
 
 function abs32(x: i32): i32 {
@@ -43,11 +45,9 @@ function loadOrCreatePool(poolId: Bytes, hook: Bytes): Pool {
   pool.totalTaxUnits = BigInt.zero();
   pool.totalTaxedSwaps = 0;
   pool.totalPriorityFeeWei = BigInt.zero();
-  pool.totalRejections = 0;
-  pool.rejectionsByDeviation = 0;
-  pool.rejectionsByVolume = 0;
-  pool.rejectionsByHalt = 0;
-  pool.rejectionsByPositionAge = 0;
+  pool.oracleSkips = 0;
+  pool.oracleFeed = Bytes.empty();
+  pool.oracleMaxTickDeviation = 0;
   pool.haltedUntilBlock = BigInt.zero();
   pool.lastTick = 0;
   pool.lastCheckpointBlock = BigInt.zero();
@@ -67,7 +67,7 @@ function loadOrCreateDay(pool: Pool, timestamp: BigInt): PoolDayData {
   day.date = date * SECONDS_PER_DAY;
   day.taxUnits = BigInt.zero();
   day.taxedSwaps = 0;
-  day.rejections = 0;
+  day.oracleSkips = 0;
   day.maxAbsTickDelta = 0;
   day.checkpoints = 0;
   return day;
@@ -162,31 +162,30 @@ export function handleMevTaxApplied(event: MevTaxApplied): void {
   day.save();
 }
 
-export function handleSwapRejected(event: SwapRejected): void {
+export function handleOracleUnavailable(event: OracleUnavailable): void {
   let pool = loadOrCreatePool(event.params.poolId, event.address);
 
-  let rejection = new Rejection(eventId(event));
-  rejection.pool = pool.id;
-  rejection.sender = event.params.sender;
-  rejection.reason = reasonName(event.params.reason);
-  rejection.observed = event.params.observed;
-  rejection.bound = event.params.bound;
-  rejection.blockNumber = event.block.number;
-  rejection.timestamp = event.block.timestamp;
-  rejection.txHash = event.transaction.hash;
-  rejection.save();
+  let skip = new OracleSkipped(eventId(event));
+  skip.pool = pool.id;
+  skip.reason = statusName(event.params.status);
+  skip.blockNumber = event.block.number;
+  skip.timestamp = event.block.timestamp;
+  skip.txHash = event.transaction.hash;
+  skip.save();
 
-  pool.totalRejections = pool.totalRejections + 1;
-  let code = event.params.reason;
-  if (code == 1) pool.rejectionsByDeviation = pool.rejectionsByDeviation + 1;
-  else if (code == 2) pool.rejectionsByVolume = pool.rejectionsByVolume + 1;
-  else if (code == 3) pool.rejectionsByHalt = pool.rejectionsByHalt + 1;
-  else if (code == 4) pool.rejectionsByPositionAge = pool.rejectionsByPositionAge + 1;
+  pool.oracleSkips = pool.oracleSkips + 1;
   pool.save();
 
   let day = loadOrCreateDay(pool, event.block.timestamp);
-  day.rejections = day.rejections + 1;
+  day.oracleSkips = day.oracleSkips + 1;
   day.save();
+}
+
+export function handleOracleConfigured(event: OracleConfigured): void {
+  let pool = loadOrCreatePool(event.params.poolId, event.address);
+  pool.oracleFeed = event.params.feed;
+  pool.oracleMaxTickDeviation = event.params.maxTickDeviation;
+  pool.save();
 }
 
 export function handleGuardianHalt(event: GuardianHalt): void {

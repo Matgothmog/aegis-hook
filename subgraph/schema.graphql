@@ -1,7 +1,7 @@
 # Aegis watchtower schema.
 #
 # Shaped around the two questions the indexed data has to answer:
-#   1. Is this pool under attack right now?          -> Rejection, MevTax, PoolDayData
+#   1. Is this pool under attack right now?          -> MevTax, OracleSkipped, PoolDayData
 #   2. How should this pool's defenses be tuned?     -> BlockCheckpoint.tickDelta
 #
 # The second is the one that matters. The hook's design admits that the circuit breaker has a
@@ -32,11 +32,14 @@ type Pool @entity(immutable: false) {
   totalTaxUnits: BigInt!
   totalTaxedSwaps: Int!
   totalPriorityFeeWei: BigInt!
-  totalRejections: Int!
-  rejectionsByDeviation: Int!
-  rejectionsByVolume: Int!
-  rejectionsByHalt: Int!
-  rejectionsByPositionAge: Int!
+  """
+  Times the external price reference could not be used, so the cross-block check was skipped.
+  A pool with a rising count is protected only by its per-block breaker, which an operator
+  needs to know.
+  """
+  oracleSkips: Int!
+  oracleFeed: Bytes!
+  oracleMaxTickDeviation: Int!
 
   # --- breaker state ---
   haltedUntilBlock: BigInt!
@@ -49,7 +52,7 @@ type Pool @entity(immutable: false) {
 
   checkpoints: [BlockCheckpoint!]! @derivedFrom(field: "pool")
   taxEvents: [MevTax!]! @derivedFrom(field: "pool")
-  rejections: [Rejection!]! @derivedFrom(field: "pool")
+  oracleSkipEvents: [OracleSkipped!]! @derivedFrom(field: "pool")
   dayData: [PoolDayData!]! @derivedFrom(field: "pool")
 }
 
@@ -69,15 +72,20 @@ type MevTax @entity(immutable: true) {
   txHash: Bytes!
 }
 
-"A swap the hook refused, and why."
-type Rejection @entity(immutable: true) {
+"""
+The external reference could not be used for a swap, so the cross-block check was skipped.
+
+Note what is *not* here: an event for a rejected swap. Aegis blocks a swap by reverting, and the
+EVM discards logs from a reverted frame — so a rejection event could never be written, and an
+earlier version of this schema indexed one that never fired. Rejections are observable as failed
+transactions, not as events. This entity exists because a skipped oracle check happens on a path
+where the transaction *succeeds*, which is exactly why it can be recorded.
+"""
+type OracleSkipped @entity(immutable: true) {
   id: Bytes!
   pool: Pool!
-  sender: Bytes!
-  "PriceDeviation | VolumeLimit | GuardianHalt | PositionTooYoung"
+  "NotConfigured | StaleAnswer | InvalidAnswer | OutOfRange | BadConfig"
   reason: String!
-  observed: BigInt!
-  bound: BigInt!
   blockNumber: BigInt!
   timestamp: BigInt!
   txHash: Bytes!
@@ -104,7 +112,7 @@ type PoolDayData @entity(immutable: false) {
   date: Int!
   taxUnits: BigInt!
   taxedSwaps: Int!
-  rejections: Int!
+  oracleSkips: Int!
   maxAbsTickDelta: Int!
   checkpoints: Int!
 }

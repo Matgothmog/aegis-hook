@@ -11,6 +11,7 @@ import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {ModifyLiquidityParams, SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {OracleReference} from "./libraries/OracleReference.sol";
 
 /// @title AegisHook
 /// @notice A self-defending Uniswap v4 pool: an MEV tax that prices extraction out of the
@@ -76,15 +77,6 @@ contract AegisHook is BaseHook {
     // Types
     // -------------------------------------------------------------------------
 
-    /// @notice Why a swap was rejected. Indexed off-chain by the watchtower subgraph.
-    enum Reason {
-        None,
-        PriceDeviation,
-        VolumeLimit,
-        GuardianHalt,
-        PositionTooYoung
-    }
-
     struct PoolConfig {
         uint24 baseFee; // fee floor, in hundredths of a bip (3000 = 0.30%)
         uint24 maxFee; // ceiling after the MEV tax is added
@@ -112,6 +104,8 @@ contract AegisHook is BaseHook {
 
     mapping(PoolId => PoolConfig) public poolConfig;
     mapping(PoolId => BlockState) public blockState;
+    /// @notice Optional external price reference per pool. Unset means the check is skipped.
+    mapping(PoolId => OracleReference.Config) public oracleConfig;
     /// @dev poolId => position key => block the position was last added to.
     mapping(PoolId => mapping(bytes32 => uint64)) public positionBlock;
 
@@ -127,7 +121,12 @@ contract AegisHook is BaseHook {
     event MevTaxApplied(
         PoolId indexed poolId, address indexed sender, uint256 priorityFeeWei, uint24 feeCharged, uint24 taxUnits
     );
-    event SwapRejected(PoolId indexed poolId, address indexed sender, Reason reason, int256 observed, int256 bound);
+    /// @notice The oracle reference could not be used, so the cross-block check was skipped for
+    ///         this swap. Emitted rather than reverted — see `_checkOracle`. This is the only
+    ///         rejection-adjacent event that survives, because it is the only one on a path where
+    ///         the transaction succeeds.
+    event OracleUnavailable(PoolId indexed poolId, uint8 status);
+    event OracleConfigured(PoolId indexed poolId, address feed, uint24 maxTickDeviation, uint32 maxStaleness);
     event GuardianHalt(PoolId indexed poolId, uint64 untilBlock);
     event GuardianTransferred(address indexed from, address indexed to);
 
@@ -139,6 +138,7 @@ contract AegisHook is BaseHook {
     error PoolNotConfigured();
     error MustUseDynamicFee();
     error PriceDeviationExceeded(int24 checkpointTick, int24 observedTick, uint24 bound);
+    error OracleDivergence(int24 referenceTick, int24 observedTick, uint24 bound);
     error VolumeLimitExceeded(uint128 attempted, uint128 bound);
     error PoolHalted(uint64 untilBlock);
     error PositionTooYoung(uint64 addedAt, uint64 unlocksAt);
@@ -216,6 +216,21 @@ contract AegisHook is BaseHook {
         emit GuardianHalt(poolId, 0);
     }
 
+    /// @notice Attach (or detach, with `feed == address(0)`) an external price reference.
+    /// @dev The per-block breaker bounds what one block can do. It cannot see manipulation walked
+    ///      across many blocks, each step individually legal. This is what closes that gap.
+    function configureOracle(PoolKey calldata key, OracleReference.Config calldata cfg) external onlyGuardian {
+        if (cfg.feed != address(0) && cfg.maxTickDeviation < MIN_TICK_DEVIATION) revert InvalidConfig();
+        PoolId poolId = key.toId();
+        oracleConfig[poolId] = cfg;
+        emit OracleConfigured(poolId, cfg.feed, cfg.maxTickDeviation, cfg.maxStaleness);
+    }
+
+    /// @notice The oracle reference for a pool, as a struct.
+    function getOracleConfig(PoolId poolId) external view returns (OracleReference.Config memory) {
+        return oracleConfig[poolId];
+    }
+
     function transferGuardian(address to) external onlyGuardian {
         if (to == address(0)) revert ZeroAddress();
         emit GuardianTransferred(guardian, to);
@@ -247,7 +262,6 @@ contract AegisHook is BaseHook {
 
         // Guardian latch.
         if (block.number < bs.haltedUntilBlock) {
-            emit SwapRejected(poolId, sender, Reason.GuardianHalt, int256(block.number), int256(uint256(bs.haltedUntilBlock)));
             revert PoolHalted(bs.haltedUntilBlock);
         }
 
@@ -265,7 +279,6 @@ contract AegisHook is BaseHook {
         // The authoritative accounting happens in afterSwap against the settled delta.
         uint128 attempted = bs.volumeInBlock + _abs128(params.amountSpecified);
         if (attempted > cfg.maxVolumePerBlock) {
-            emit SwapRejected(poolId, sender, Reason.VolumeLimit, int256(uint256(attempted)), int256(uint256(cfg.maxVolumePerBlock)));
             revert VolumeLimitExceeded(attempted, cfg.maxVolumePerBlock);
         }
 
@@ -292,9 +305,10 @@ contract AegisHook is BaseHook {
         int24 checkpoint = bs.checkpointTick;
         uint24 moved = uint24(_absTick(tick - checkpoint));
         if (moved > cfg.maxTickDeviation) {
-            emit SwapRejected(poolId, sender, Reason.PriceDeviation, int256(tick), int256(checkpoint));
             revert PriceDeviationExceeded(checkpoint, tick, cfg.maxTickDeviation);
         }
+
+        _checkOracle(poolId, tick);
 
         // Settle the authoritative volume for this block from the realised delta.
         bs.volumeInBlock += _abs128(int256(delta.amount0()));
@@ -330,7 +344,6 @@ contract AegisHook is BaseHook {
             uint64 addedAt = positionBlock[poolId][_positionKey(sender, params)];
             uint64 unlocksAt = addedAt + cfg.minPositionAgeBlocks;
             if (addedAt != 0 && block.number < unlocksAt) {
-                emit SwapRejected(poolId, sender, Reason.PositionTooYoung, int256(block.number), int256(uint256(unlocksAt)));
                 revert PositionTooYoung(addedAt, unlocksAt);
             }
         }
@@ -414,6 +427,34 @@ contract AegisHook is BaseHook {
     ///      positions: uniqueness between users of one router comes from `salt`, which
     ///      PositionManager derives from the position's NFT id. A router that reuses salts
     ///      across users would collide here exactly as it would collide in v4-core.
+    /// @dev Compare the pool against an external reference, closing the multi-block gap the
+    ///      per-block breaker cannot see.
+    ///
+    ///      **This fails open, deliberately.** When the feed is stale, broken or misconfigured the
+    ///      check is skipped and an event is emitted, rather than the swap being reverted. Failing
+    ///      closed would mean any Chainlink outage halts the pool outright — turning an oracle
+    ///      problem into a total denial of service on a venue people need most when markets move.
+    ///      Failing open degrades Aegis to its per-block breaker, which is exactly the protection
+    ///      it had before an oracle was attached. Degrading to the previous security level is a
+    ///      defensible failure mode; halting trading is not.
+    ///
+    ///      The event is the reason this is honest rather than silent: the watchtower sees every
+    ///      skipped check, so an operator can tell the difference between "protected" and
+    ///      "protected except the oracle has been down for six hours".
+    function _checkOracle(PoolId poolId, int24 tick) internal {
+        OracleReference.Config memory oc = oracleConfig[poolId];
+        if (oc.feed == address(0)) return;
+
+        (OracleReference.Status status, int24 refTick) = OracleReference.referenceTick(oc);
+        if (status != OracleReference.Status.Ok) {
+            emit OracleUnavailable(poolId, uint8(status));
+            return;
+        }
+
+        uint24 drift = uint24(_absTick(tick - refTick));
+        if (drift > oc.maxTickDeviation) revert OracleDivergence(refTick, tick, oc.maxTickDeviation);
+    }
+
     function _positionKey(address owner, ModifyLiquidityParams calldata params) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(owner, params.tickLower, params.tickUpper, params.salt));
     }

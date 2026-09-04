@@ -21,7 +21,7 @@ dataSources:
       entities:
         - Pool
         - MevTax
-        - Rejection
+        - OracleSkipped
         - BlockCheckpoint
         - PoolDayData
       abis:
@@ -34,7 +34,9 @@ dataSources:
           handler: handleBlockCheckpointed
         - event: MevTaxApplied(indexed bytes32,indexed address,uint256,uint24,uint24)
           handler: handleMevTaxApplied
-        - event: SwapRejected(indexed bytes32,indexed address,uint8,int256,int256)
-          handler: handleSwapRejected
+        - event: OracleUnavailable(indexed bytes32,uint8)
+          handler: handleOracleUnavailable
+        - event: OracleConfigured(indexed bytes32,address,uint24,uint32)
+          handler: handleOracleConfigured
         - event: GuardianHalt(indexed bytes32,uint64)
           handler: handleGuardianHalt

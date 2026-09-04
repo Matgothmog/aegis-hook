@@ -205,21 +205,23 @@ wrong in the safe direction, and there is now a measurement to replace it with.
 |---|---|---|
 | Uniswap Foundation | Best Uniswap Stack Contribution | The hook itself + the reusable attack-lab harness |
 | The Graph | Best AI Tooling (from scratch) | Subgraph → MCP server → agent that reasons over live pool threat state |
-| Chainlink | Best Confidential Workflow / Automated Protection | Feed as breaker reference; Automation for cooldown reset |
+| Chainlink | Best Confidential Workflow / Automated Protection | Price feed as the external reference that catches multi-block manipulation |
 | Arc (Circle) | Best DeFi + Launch on Arc Testnet | Secondary deployment |
 
-## Two defenses, two regimes
+## Three defenses, three regimes
 
-Worth being precise about, because it is easy to oversell:
+Worth being precise about, because it would be easy to oversell. None of the three subsumes
+another.
 
-- At **ordinary sandwich sizes** the frontrun stays well inside the tick bound, and the
-  breaker correctly lets it through. The MEV tax is what makes the attack unprofitable.
-- The **breaker** exists for the move the tax cannot price — a swap large enough to be an
-  attack on the pool itself rather than on one victim. Nothing in v4 bounds how far a single
-  block may move a price; this does.
+| Attack shape | What stops it | Why the others cannot |
+|---|---|---|
+| Ordinary sandwich | **MEV tax** | The move stays inside the tick bound, and the breaker correctly lets it through — blocking it would block honest trades of the same size |
+| Single-block manipulation | **Circuit breaker** | No fee deters someone whose real profit is in a lending market elsewhere; a bound is not a price, and cannot be outbid |
+| Manipulation walked across many blocks | **Oracle reference** | The breaker re-anchors its checkpoint every block, so a slow walk never violates it — by construction, not by oversight |
 
-Neither mechanism subsumes the other, and claiming either one alone is sufficient would be
-wrong.
+The third is the one most hook designs miss. `test_multiBlockWalkSucceedsWithoutAnOracle` shows
+the gap: six blocks of legal moves carry the price -2261 ticks past a breaker that never fires.
+`test_oracleStopsTheMultiBlockWalk` shows it closed.
 
 ## Live on Unichain Sepolia
 

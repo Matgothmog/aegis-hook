@@ -90,9 +90,17 @@ key and no deployed subgraph**.
 
 ## Subgraph
 
-Indexes `PoolConfigured`, `BlockCheckpointed`, `MevTaxApplied`, `SwapRejected` and `GuardianHalt`
-from the deployed hook. `BlockCheckpoint.tickDelta` is the calibration signal, stored so the
-distribution can be queried directly rather than recomputed from logs each time.
+Indexes `PoolConfigured`, `BlockCheckpointed`, `MevTaxApplied`, `OracleConfigured`,
+`OracleUnavailable` and `GuardianHalt`. `BlockCheckpoint.tickDelta` is the calibration signal,
+stored so the distribution can be queried directly rather than recomputed from logs each time.
+
+**There is deliberately no rejection event.** An earlier version of this schema indexed a
+`SwapRejected` event, and building the oracle guard surfaced that it could never have fired: Aegis
+blocks a swap by reverting, and the EVM discards logs from a reverted call frame. Every one of
+those emits sat immediately before a `revert` and was dead code. Rejections are observable as
+*failed transactions*, not as events — which is a genuine limitation of indexing a hook that
+defends by refusing. `OracleSkipped` exists precisely because a skipped oracle check happens on a
+path where the transaction succeeds.
 
 ```bash
 cd subgraph
