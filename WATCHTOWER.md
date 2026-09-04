@@ -115,3 +115,44 @@ Both were caught by checking output that looked plausible rather than by a test 
    numbers had not been *exactly* zero across 1,901 swaps.
 2. **Wrong function selector.** `poolConfig(bytes32)` is `0x0885f732`; a guessed value returned
    decodable garbage rather than an error. Selectors get computed, never assumed.
+
+## The loop, closed onchain
+
+The calibration engine was pointed at the deployment that produced it.
+
+1. **Calibrate our own pool** — the engine refuses:
+   `1 traded block in this window, and the price never moved.` Correct. A testnet pool with two
+   demo swaps has no distribution to fit a bound to, and inventing one would be worse than
+   admitting it.
+2. **Calibrate comparable pools with real flow** — the busiest live v4 pools on Unichain mainnet
+   recommend 100–200 ticks, against a worst observed honest excursion of 39.
+3. **Apply it** — `script/Retune.s.sol` reads the live config and changes exactly one field, so a
+   retune cannot silently reset the fee schedule or the JIT lockup as a side effect.
+
+```
+maxTickDeviation  from 500
+                    to 200
+```
+
+4. **Verify through the same tool** — `pool_state` reads back `max tick deviation 200 (2.02%)`,
+   every other field preserved and the tax counter untouched at 20,000.
+5. **Confirm the pool still trades** — a swap bidding 1 gwei went through and was taxed 10,000 fee
+   units, taking the total to 30,000. The tighter bound rejects manipulation, not honest flow.
+
+The value applied came from *other* pools, and that is a judgement call rather than a measurement.
+It is labelled as one in the script, because presenting a borrowed number as a fitted one is
+exactly the sort of thing this whole harness exists to avoid.
+
+## A safety bug in the calibrator itself
+
+The first version printed `RECOMMENDED maxTickDeviation: 10 ticks` for our empty testnet pool,
+while separately explaining in prose that there was too little history to calibrate on.
+
+That is worse than useless. Someone reads the number, applies it, and the pool rejects essentially
+every honest trade from the first swap. A tool that hedges in prose while emitting a copyable
+number has not refused — it has made a dangerous recommendation with a disclaimer attached.
+
+`recommend()` now returns `recommended: null` below 100 traded blocks or with no observed
+movement, and both the CLI and the MCP tool print no number at all. A caller that ignores the
+`sufficient` flag gets a null and fails loudly, rather than silently applying a bound that breaks
+the pool.

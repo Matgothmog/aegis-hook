@@ -45,6 +45,17 @@ server.tool(
     if (!r) return text(`Only ${swaps.length} swaps found, in too few distinct blocks to calibrate. Widen the window.`);
 
     const pct = (t) => ticksToPercent(t).toFixed(3);
+
+    if (!r.sufficient) {
+      return text(
+        `Cannot calibrate ${poolId} on ${chain}.\n\n` +
+          `Only ${r.blocksMeasured} traded block${r.blocksMeasured === 1 ? "" : "s"} in blocks ${from}-${latest}` +
+          (r.observedMax === 0 ? `, and the price never moved.` : `, below the minimum needed for a meaningful distribution.`) +
+          `\n\nNo bound is recommended, deliberately. A value fitted to a handful of quiet blocks would be far\n` +
+          `too tight and would reject honest trades immediately. Widen the window, or calibrate against a\n` +
+          `comparable pool that has real flow and apply that result.`
+      );
+    }
     return text(
       `Calibration for ${poolId} on ${chain}\n` +
         `Sampled blocks ${from}-${latest}; ${r.blocksMeasured} of them traded.\n\n` +

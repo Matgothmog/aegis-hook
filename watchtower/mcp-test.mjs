@@ -5,12 +5,9 @@ const transport = new StdioClientTransport({ command: "node", args: ["./mcp-serv
 const client = new Client({ name: "test", version: "1.0.0" });
 await client.connect(transport);
 
-const { tools } = await client.listTools();
-console.log("TOOLS:", tools.map((t) => t.name).join(", "), "\n");
-
 const calls = [
-  ["assess_threat", { poolId: "0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f", chain: "unichain-sepolia", lookback: 20000 }],
-  ["calibrate_pool", { poolId: "0x3258f413c7a88cda2fa8709a589d221a80f6574f63df5a5b6774485d8acc39d9", chain: "unichain-mainnet", blocks: 3000 }],
+  ["pool_state", { poolId: "0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f", chain: "unichain-sepolia" }],
+  ["calibrate_pool", { poolId: "0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f", chain: "unichain-sepolia", blocks: 8000 }],
 ];
 for (const [name, args] of calls) {
   console.log("=".repeat(70));

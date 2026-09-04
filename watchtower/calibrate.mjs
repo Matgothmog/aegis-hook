@@ -157,12 +157,21 @@ function percentile(sorted, p) {
 
 const toPct = (ticks) => (Math.pow(1.0001, ticks) - 1) * 100;
 
+// A bound derived from a handful of blocks is not a measurement, it is a coincidence. Below this
+// the engine reports the distribution but refuses to name a number, because a too-tight bound
+// applied to a live pool rejects honest trades immediately and visibly.
+export const MIN_TRADED_BLOCKS = 100;
+
 export function recommend(excursions) {
   const values = excursions.map((e) => e.excursion).sort((a, b) => a - b);
   if (values.length === 0) return null;
 
   const p = (q) => percentile(values, q);
   const observedMax = values[values.length - 1];
+
+  // Two ways the sample can be useless: too few traded blocks, or a pool so quiet it never moved.
+  // Either way there is nothing to place a bound against.
+  const sufficient = values.length >= MIN_TRADED_BLOCKS && observedMax > 0;
 
   // A 3x margin over the 99.9th percentile. The asymmetry is deliberate: rejecting an honest
   // trade is a visible, immediate failure for a user, while a bound somewhat looser than optimal
@@ -178,14 +187,17 @@ export function recommend(excursions) {
 
   return {
     blocksMeasured: values.length,
+    sufficient,
     p50: p(50),
     p90: p(90),
     p99: p(99),
     p999: p(99.9),
     observedMax,
-    recommended,
-    wouldHaveRejected: rejected,
-    rejectionRate: rejected / values.length,
+    // Null rather than a number when the sample cannot support one. A caller that ignores
+    // `sufficient` then fails loudly instead of silently applying a bound that breaks the pool.
+    recommended: sufficient ? recommended : null,
+    wouldHaveRejected: sufficient ? rejected : null,
+    rejectionRate: sufficient ? rejected / values.length : null,
   };
 }
 
@@ -207,6 +219,21 @@ function render(pool, range, r) {
   console.log("");
   console.log("  Recommendation");
   console.log("  " + "-".repeat(62));
+
+  if (!r.sufficient) {
+    console.log("  NO RECOMMENDATION - the sample cannot support one.");
+    console.log("");
+    console.log(
+      `  ${r.blocksMeasured} traded block${r.blocksMeasured === 1 ? "" : "s"} in this window` +
+        (r.observedMax === 0 ? ", and the price never moved." : `, against a minimum of ${MIN_TRADED_BLOCKS}.`)
+    );
+    console.log("  Widen the window, or calibrate against a comparable pool with real flow.");
+    console.log("  Deliberately no number here: a bound fitted to a handful of quiet blocks");
+    console.log("  would be far too tight, and would reject honest trades from the first swap.");
+    console.log("");
+    return;
+  }
+
   console.log(row("maxTickDeviation", r.recommended));
   console.log(
     `  ${"would have rejected".padEnd(34)} ${String(r.wouldHaveRejected).padStart(6)} blocks   ${(
@@ -215,9 +242,7 @@ function render(pool, range, r) {
   );
   console.log("");
 
-  if (r.observedMax === 0) {
-    console.log("  No price movement observed. Too little history to calibrate on.");
-  } else if (r.rejectionRate > 0.001) {
+  if (r.rejectionRate > 0.001) {
     console.log("  Note: this bound would still have rejected real trades in this window.");
     console.log("  Widen it, or accept the rejection rate deliberately.");
   } else {
