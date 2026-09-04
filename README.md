@@ -228,10 +228,14 @@ Developer feedback on building against the stack: [FEEDBACK.md](./FEEDBACK.md).
 
 | Sponsor | Track | How Aegis qualifies |
 |---|---|---|
-| Uniswap Foundation | Best Uniswap Stack Contribution | The hook itself + the reusable attack-lab harness |
-| The Graph | Best AI Tooling (from scratch) | Subgraph → MCP server → agent that reasons over live pool threat state |
-| Chainlink | Best Confidential Workflow / Automated Protection | Price feed as the external reference that catches multi-block manipulation |
-| Arc (Circle) | Best DeFi + Launch on Arc Testnet | Secondary deployment |
+| Uniswap Foundation | Best Uniswap Stack Contribution | The hook, the reusable attack-lab harness, and [FEEDBACK.md](./FEEDBACK.md) |
+| The Graph | Best AI Tooling (from scratch) | Aegis subgraph + Uniswap's v4 subgraph as the agent's source of blockchain data; the calibration recommendation is derived from indexed history |
+| Arc (Circle) | Launch on Arc Testnet | First v4 deployment on Arc — PoolManager brought along, hook on top |
+
+**Not claiming Chainlink.** The oracle guard uses Chainlink Data Feeds, but every Chainlink track
+at this event requires a CRE Confidential Workflow with a TEE handler, which is a different
+product entirely. The guard is in the repo because the threat model needed it, not because it wins
+anything — and saying so beats a judge working it out.
 
 ## Three defenses, three regimes
 
