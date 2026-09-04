@@ -33,6 +33,7 @@ function loadOrCreatePool(poolId: Bytes, hook: Bytes): Pool {
   pool.baseFee = 0;
   pool.maxFee = 0;
   pool.mevTaxPerGwei = 0;
+  pool.mevTaxFloorGwei = 0;
   pool.maxTickDeviation = 0;
   pool.cooldownBlocks = 0;
   pool.minPositionAgeBlocks = 0;
@@ -83,6 +84,7 @@ export function handlePoolConfigured(event: PoolConfigured): void {
   pool.baseFee = cfg.baseFee;
   pool.maxFee = cfg.maxFee;
   pool.mevTaxPerGwei = cfg.mevTaxPerGwei;
+  pool.mevTaxFloorGwei = cfg.mevTaxFloorGwei;
   pool.maxTickDeviation = cfg.maxTickDeviation;
   // uint32 codegens to BigInt. Narrowing to i32 is safe here and not merely convenient: the
   // hook caps these at MAX_COOLDOWN_BLOCKS (7200) and MAX_POSITION_AGE_BLOCKS (300) on every

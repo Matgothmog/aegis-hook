@@ -10,9 +10,9 @@ dataSources:
     name: AegisHook
     network: unichain-sepolia
     source:
-      address: "0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0"
+      address: "0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0"
       abi: AegisHook
-      startBlock: 61674705
+      startBlock: 61677790
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -28,7 +28,7 @@ dataSources:
         - name: AegisHook
           file: ./abis/AegisHook.json
       eventHandlers:
-        - event: PoolConfigured(indexed bytes32,(uint24,uint24,uint24,uint24,uint32,uint32,uint128,bool))
+        - event: PoolConfigured(indexed bytes32,(uint24,uint24,uint24,uint24,uint24,uint32,uint32,uint128,bool))
           handler: handlePoolConfigured
         - event: BlockCheckpointed(indexed bytes32,uint64,int24)
           handler: handleBlockCheckpointed

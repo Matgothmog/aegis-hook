@@ -102,7 +102,7 @@ npm run deploy          # requires a Subgraph Studio key
 ```
 
 Built and validated against the live deployment at
-`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`, from block `61674705`.
+`0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0`, from block `61674705`.
 
 ## Two bugs worth recording
 

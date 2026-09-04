@@ -19,6 +19,8 @@ type Pool @entity(immutable: false) {
   baseFee: Int!
   maxFee: Int!
   mevTaxPerGwei: Int!
+  "Ambient priority fee below which nothing is taxed. Chain-specific; 0 where ordinary flow bids nothing."
+  mevTaxFloorGwei: Int!
   maxTickDeviation: Int!
   cooldownBlocks: Int!
   minPositionAgeBlocks: Int!

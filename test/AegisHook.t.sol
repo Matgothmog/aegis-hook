@@ -93,6 +93,82 @@ contract AegisHookTest is AegisFixture {
     }
 
     // -------------------------------------------------------------------------
+    // MEV tax floor — what makes the tax portable across chains
+    // -------------------------------------------------------------------------
+
+    function test_zeroFloorReproducesRawPriorityFeeTax() public {
+        // Regression guard. A floor of 0 must behave exactly as the original did, which is the
+        // correct setting on a chain like Unichain where ordinary transactions bid nothing.
+        _setPriorityFee(2);
+        assertEq(hook.quoteFee(aegisKey), 23_000, "floor 0 must tax the whole bid");
+    }
+
+    function test_bidBelowTheFloorIsNotTaxed() public {
+        AegisHook.PoolConfig memory cfg = _defaultConfig();
+        cfg.mevTaxFloorGwei = 25;
+        hook.configurePool(aegisKey, cfg);
+
+        _setPriorityFee(10); // Arc's median transaction
+        assertEq(hook.quoteFee(aegisKey), 3000, "ambient flow must pay only the base fee");
+
+        _setPriorityFee(25); // exactly at the floor
+        assertEq(hook.quoteFee(aegisKey), 3000, "the floor itself is not taxable");
+    }
+
+    function test_onlyTheExcessAboveTheFloorIsTaxed() public {
+        AegisHook.PoolConfig memory cfg = _defaultConfig();
+        cfg.mevTaxFloorGwei = 25;
+        hook.configurePool(aegisKey, cfg);
+
+        _setPriorityFee(26); // 1 gwei of genuine excess
+        assertEq(hook.quoteFee(aegisKey), 13_000, "tax must apply to the excess, not the total");
+
+        _setPriorityFee(27);
+        assertEq(hook.quoteFee(aegisKey), 23_000, "and scale with it");
+    }
+
+    /// @notice The failure this parameter exists to prevent, reproduced.
+    ///
+    ///         Arc runs a flat 20 gwei base fee and its median transaction bids 10 gwei of
+    ///         priority — measured, not assumed. With no floor, that median transaction is taxed
+    ///         100,000 units, clamps to the ceiling, and every ordinary swap pays the 5% maximum.
+    ///         That is not a conservative failure; it is a pool nobody can trade against.
+    function test_ambientTipChainWouldBreakWithoutAFloor() public {
+        AegisHook.PoolConfig memory cfg = _defaultConfig();
+        cfg.mevTaxFloorGwei = 0;
+        hook.configurePool(aegisKey, cfg);
+
+        _setPriorityFee(10);
+        assertEq(hook.quoteFee(aegisKey), 50_000, "without a floor, Arc's median swap pays the ceiling");
+
+        // With the floor set at the ambient level, the same transaction pays the base fee, and a
+        // searcher outbidding the ambient level still pays for the position they are buying.
+        cfg.mevTaxFloorGwei = 25;
+        hook.configurePool(aegisKey, cfg);
+
+        _setPriorityFee(10);
+        assertEq(hook.quoteFee(aegisKey), 3000, "ambient flow untaxed");
+        _setPriorityFee(80); // Arc's p99 bid
+        assertEq(hook.quoteFee(aegisKey), 50_000, "a genuine outbid still reaches the ceiling");
+    }
+
+    function testFuzz_floorNeverProducesAFeeBelowBase(uint64 bidWei, uint24 floorGwei) public {
+        floorGwei = uint24(bound(floorGwei, 0, 1000));
+        bidWei = uint64(bound(bidWei, 0, type(uint64).max - uint64(1 gwei)));
+
+        AegisHook.PoolConfig memory cfg = _defaultConfig();
+        cfg.mevTaxFloorGwei = floorGwei;
+        hook.configurePool(aegisKey, cfg);
+
+        vm.fee(1 gwei);
+        vm.txGasPrice(uint256(1 gwei) + bidWei);
+
+        uint24 fee = hook.quoteFee(aegisKey);
+        assertGe(fee, 3000, "never below the floor fee");
+        assertLe(fee, 50_000, "never above the ceiling");
+    }
+
+    // -------------------------------------------------------------------------
     // Circuit breaker
     // -------------------------------------------------------------------------
 

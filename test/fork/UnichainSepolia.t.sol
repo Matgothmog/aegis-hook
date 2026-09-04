@@ -93,6 +93,7 @@ contract UnichainSepoliaForkTest is Test {
             baseFee: 3000,
             maxFee: 50_000,
             mevTaxPerGwei: 10_000,
+            mevTaxFloorGwei: 0, // Unichain: ambient tip is ~0, so the whole bid is signal
             maxTickDeviation: 500,
             cooldownBlocks: 100,
             minPositionAgeBlocks: 0,

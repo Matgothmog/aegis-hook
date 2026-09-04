@@ -115,10 +115,10 @@ genuinely unwinds the swap. It skips itself if the RPC is unreachable.
 | | |
 |---|---|
 | Chain | Unichain Sepolia (1301) |
-| AegisHook | [`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`](https://sepolia.uniscan.xyz/address/0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0) |
+| AegisHook | [`0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0`](https://sepolia.uniscan.xyz/address/0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0) |
 | PoolManager | `0x00B036B58a818B1BC34d502D3fE730Db729e62AC` |
 | Guardian | `0x504D0A8ff1775bA0CF71785AD24E38A4EC7f9388` |
-| CREATE2 salt | `0x0b23` |
+| CREATE2 salt | see `broadcast/` |
 | Permission bits | `0x2AC0` (10944) |
 
 Verified onchain rather than taken from the deploy log: the contract has code, `poolManager()`
@@ -133,17 +133,17 @@ Seeded by `script/SeedPool.s.sol`, driven by `script/DemoSwap.s.sol`.
 
 | | |
 |---|---|
-| poolId | `0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f` |
-| token0 (AEGA) | `0x0aa1c458587bedb6dd6931dd023f213add61f749` |
-| token1 (AEGB) | `0xe4d271184bbfa35806d1a478e110cf112e35d0c3` |
-| PoolSwapTest | `0xe6e7559887910ce1a7fa5db71fb1cbd60e939ff0` |
-| PoolModifyLiquidityTest | `0x7f97f4ceb7e6b98e6df2535a9b39a970c530bd90` |
+| poolId | `0xb350a55f4185c565df844fd1ec1c3a453523e01854e79ea63c141dce3ef2a9da` |
+| token0 (AEGA) | `0x0dCDA2128dE6BF15246B8531CECB7Ab2331D1e01` |
+| token1 (AEGB) | `0xbCB29a19524C68ad33721B6ED60045fC0a3F2ca6` |
+| PoolSwapTest | `0x0c656f8f1Cc477b12E197d0df0b2e511E70d8A65` |
+| PoolModifyLiquidityTest | `0xfE70D8b253343dCb7b7a13bC5704C87E4EAC7aF4` |
 
 ```bash
-export HOOK=0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0
-export SWAP_ROUTER=0xe6e7559887910ce1a7fa5db71fb1cbd60e939ff0
-export TOKEN0=0x0aa1c458587bedb6dd6931dd023f213add61f749
-export TOKEN1=0xe4d271184bbfa35806d1a478e110cf112e35d0c3
+export HOOK=0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0
+export SWAP_ROUTER=0x0c656f8f1Cc477b12E197d0df0b2e511E70d8A65
+export TOKEN0=0x0dCDA2128dE6BF15246B8531CECB7Ab2331D1e01
+export TOKEN1=0xbCB29a19524C68ad33721B6ED60045fC0a3F2ca6
 
 # honest user: charged the 3000 base fee
 forge script script/DemoSwap.s.sol --rpc-url unichain_sepolia --broadcast \
@@ -156,9 +156,59 @@ forge script script/DemoSwap.s.sol --rpc-url unichain_sepolia --broadcast \
 
 # read the accumulated tax
 cast call $HOOK "mevTaxUnitsCollected(bytes32)(uint256)" \
-  0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f \
+  0xb350a55f4185c565df844fd1ec1c3a453523e01854e79ea63c141dce3ef2a9da \
   --rpc-url https://sepolia.unichain.org
 ```
 
 Give the RPC a few seconds after a broadcast before reading state back — querying immediately
 can hit a node that has not caught up and return a stale zero.
+
+## Arc (Circle) — chain 5042002
+
+Arc has **no Uniswap v4 deployment**, so `script/DeployArc.s.sol` deploys a PoolManager first and
+then the hook on top of it. That makes this a v4 deployment on a chain that did not have one.
+
+### Get test USDC
+
+Arc pays gas in **USDC**, not ETH. The faucet is Circle's:
+
+1. <https://faucet.circle.com>
+2. Select **Arc testnet**
+3. Paste the deployer address and claim
+
+The dry run puts the whole deployment — PoolManager, hook, routers, tokens, pool, liquidity — at
+**~0.70 USDC**. Claim a few dollars' worth and there is ample margin.
+
+```bash
+# costs nothing, needs no funds
+forge script script/DeployArc.s.sol --rpc-url arc_testnet
+
+# live
+forge script script/DeployArc.s.sol --rpc-url arc_testnet --broadcast \
+  --account aegis-deployer --password aegis-testnet-only
+```
+
+### What Arc changes, and why
+
+**The tax needs a floor, or the pool is broken.** Sampling 666 transactions over 40 blocks, Arc
+runs a flat 20 gwei base fee and its *median* transaction bids 10 gwei of priority (p90 25, p99 80).
+Charging the raw priority fee the way the Unichain deployment does would tax that median swap
+100,000 units, clamp it to the ceiling, and make **every ordinary trade pay the 5% maximum**.
+
+This is a design flaw the port exposed, not merely a mis-set constant: the tax is meant to price
+the *excess* a searcher pays to win an ordering race, and on a chain with an ambient tip the excess
+is not the whole priority fee. `mevTaxFloorGwei` fixes it, set to Arc's measured p90. A floor of 0
+reproduces the original behaviour exactly, which is correct on Unichain where ordinary flow bids
+nothing — so the Unichain deployment is unchanged in behaviour.
+
+**The breaker can be much tighter.** Arc is stablecoin-native, and a stable pair has no business
+moving 5% in a block. The Arc pool ships at 50 ticks (~0.5%) against Unichain's calibrated 200. A
+bound that would strangle a volatile pair is comfortable here, and a manipulation that could hide
+inside ETH volatility stands out immediately. That 50 is a starting point to be re-derived from
+Arc's own history once the pool has one — not a number to leave sitting there.
+
+**The tax's economics are weaker on Arc, and the code says so.** Arc uses Malachite consensus,
+where ordering is proposer-determined rather than a priority-fee auction. The mechanism still
+executes and still charges, but the argument that a bid is a *truthful* signal is a property of
+priority ordering, which Unichain has and Arc does not. On Arc the circuit breaker and the
+position-age rule carry the defense.

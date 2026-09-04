@@ -945,6 +945,11 @@
             "internalType": "uint24"
           },
           {
+            "name": "mevTaxFloorGwei",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
             "name": "maxTickDeviation",
             "type": "uint24",
             "internalType": "uint24"
@@ -1062,6 +1067,72 @@
   },
   {
     "type": "function",
+    "name": "getPoolConfig",
+    "inputs": [
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "PoolId"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AegisHook.PoolConfig",
+        "components": [
+          {
+            "name": "baseFee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "maxFee",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "mevTaxPerGwei",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "mevTaxFloorGwei",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "maxTickDeviation",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "cooldownBlocks",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "minPositionAgeBlocks",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxVolumePerBlock",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "configured",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "guardian",
     "inputs": [],
     "outputs": [
@@ -1155,6 +1226,11 @@
       },
       {
         "name": "mevTaxPerGwei",
+        "type": "uint24",
+        "internalType": "uint24"
+      },
+      {
+        "name": "mevTaxFloorGwei",
         "type": "uint24",
         "internalType": "uint24"
       },
@@ -1463,6 +1539,11 @@
           },
           {
             "name": "mevTaxPerGwei",
+            "type": "uint24",
+            "internalType": "uint24"
+          },
+          {
+            "name": "mevTaxFloorGwei",
             "type": "uint24",
             "internalType": "uint24"
           },

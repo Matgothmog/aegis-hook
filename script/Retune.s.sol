@@ -42,38 +42,19 @@ contract Retune is Script {
         PoolId id = key.toId();
 
         // Read the live config and change exactly one field, so a retune cannot silently reset
-        // the fee schedule or the JIT lockup as a side effect.
-        (
-            uint24 baseFee,
-            uint24 maxFee,
-            uint24 mevTaxPerGwei,
-            uint24 oldDeviation,
-            uint32 cooldownBlocks,
-            uint32 minPositionAgeBlocks,
-            uint128 maxVolumePerBlock,
-            bool configured
-        ) = hook.poolConfig(id);
-        require(configured, "pool not configured");
+        // the fee schedule, the tax floor or the JIT lockup as a side effect.
+        AegisHook.PoolConfig memory cfg = hook.getPoolConfig(id);
+        require(cfg.configured, "pool not configured");
 
         console2.log("pool");
         console2.logBytes32(PoolId.unwrap(id));
-        console2.log("maxTickDeviation  from", uint256(oldDeviation));
+        console2.log("maxTickDeviation  from", uint256(cfg.maxTickDeviation));
         console2.log("                    to", uint256(newDeviation));
 
+        cfg.maxTickDeviation = newDeviation;
+
         vm.startBroadcast();
-        hook.configurePool(
-            key,
-            AegisHook.PoolConfig({
-                baseFee: baseFee,
-                maxFee: maxFee,
-                mevTaxPerGwei: mevTaxPerGwei,
-                maxTickDeviation: newDeviation,
-                cooldownBlocks: cooldownBlocks,
-                minPositionAgeBlocks: minPositionAgeBlocks,
-                maxVolumePerBlock: maxVolumePerBlock,
-                configured: true
-            })
-        );
+        hook.configurePool(key, cfg);
         vm.stopBroadcast();
     }
 }

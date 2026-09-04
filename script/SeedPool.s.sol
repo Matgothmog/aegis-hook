@@ -65,7 +65,8 @@ contract SeedPool is Script {
                 baseFee: 3000, // 0.30% floor
                 maxFee: 50_000, // 5% ceiling
                 mevTaxPerGwei: 10_000, // +1% of fee per gwei bid
-                maxTickDeviation: 500, // ~5% per block
+                mevTaxFloorGwei: 0, // Unichain: ambient tip is ~0, so the whole bid is signal
+                maxTickDeviation: 200, // calibrated: see watchtower/calibrate.mjs, not a guess
                 cooldownBlocks: 100,
                 minPositionAgeBlocks: 0,
                 maxVolumePerBlock: type(uint128).max,

@@ -207,7 +207,7 @@ wrong.
 ## Live on Unichain Sepolia
 
 `AegisHook` is deployed at
-[`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`](https://sepolia.uniscan.xyz/address/0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0)
+[`0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0`](https://sepolia.uniscan.xyz/address/0x295DB25bC9aE00ddC51C875F0FeC16a406a9eAc0)
 against the real v4 PoolManager, with the permission bits `0x2AC0` encoded in its own address.
 
 **The tax works onchain, not just in tests.** Two swaps against the same live pool, differing

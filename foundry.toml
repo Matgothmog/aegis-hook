@@ -26,3 +26,4 @@ fuzz = { runs = 100_000 }
 unichain_sepolia = "https://sepolia.unichain.org"
 base_sepolia = "https://sepolia.base.org"
 sepolia = "https://rpc.sepolia.org"
+arc_testnet = "https://rpc.testnet.arc.io"

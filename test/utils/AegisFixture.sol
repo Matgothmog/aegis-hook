@@ -72,6 +72,7 @@ abstract contract AegisFixture is Test, Deployers {
             baseFee: 3000, // 0.30% floor
             maxFee: 50_000, // 5% ceiling
             mevTaxPerGwei: 10_000, // +1% of fee per gwei of priority fee
+            mevTaxFloorGwei: 0, // no ambient tip in tests: the whole bid is taxable
             maxTickDeviation: 500, // ~5% per block
             cooldownBlocks: 100,
             minPositionAgeBlocks: 0, // JIT defense off by default; enabled per-test
