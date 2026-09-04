@@ -199,6 +199,31 @@ ticks**, with a worst observed excursion of 39 ticks (0.39%) — which means **t
 default of 500 ticks is 2.5x to 5x looser than any of those pools need**. The placeholder was
 wrong in the safe direction, and there is now a measurement to replace it with.
 
+## Where the Uniswap integration lives
+
+Judges asked to verify the integration should start here. Line numbers are current as of the
+latest commit.
+
+| What | Where |
+|---|---|
+| Hook permissions declared, asserted against the address bits | [`src/AegisHook.sol:163`](./src/AegisHook.sol#L163) |
+| `beforeInitialize` — rejects pools not using dynamic fees | [`src/AegisHook.sol:246`](./src/AegisHook.sol#L246) |
+| `beforeSwap` — MEV tax, block checkpoint, volume ceiling | [`src/AegisHook.sol:251`](./src/AegisHook.sol#L251) |
+| `afterSwap` — tick deviation bound, enforced by reverting | [`src/AegisHook.sol:293`](./src/AegisHook.sol#L293) |
+| `beforeRemoveLiquidity` — JIT defense via minimum position age | [`src/AegisHook.sol:334`](./src/AegisHook.sol#L334) |
+| The fee formula itself | [`src/AegisHook.sol:408`](./src/AegisHook.sol#L408) |
+| Oracle cross-check, fail-open | [`src/AegisHook.sol:444`](./src/AegisHook.sol#L444) |
+| Our own `BaseHook` (v4-periphery removed theirs) | [`src/base/BaseHook.sol:46`](./src/base/BaseHook.sol#L46) |
+| CREATE2 salt mining, shared by script and tests | [`script/AegisDeploy.sol:44`](./script/AegisDeploy.sol#L44) |
+| Chainlink answer → v4 tick conversion | [`src/libraries/OracleReference.sol:76`](./src/libraries/OracleReference.sol#L76) |
+
+**Uniswap components used:** `IHooks`, `Hooks` (permission bits and validation), `LPFeeLibrary`
+(`DYNAMIC_FEE_FLAG`, `OVERRIDE_FEE_FLAG`), `StateLibrary.getSlot0`, `TickMath`, `FullMath`,
+`PoolKey`/`PoolId`, `BeforeSwapDelta`, and v4-core's `Deployers` test fixtures. `HookMiner` from
+v4-periphery.
+
+Developer feedback on building against the stack: [FEEDBACK.md](./FEEDBACK.md).
+
 ## Prize tracks targeted
 
 | Sponsor | Track | How Aegis qualifies |

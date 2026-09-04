@@ -24,6 +24,21 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { CHAINS, AEGIS_HOOK, TOPICS, REASONS, rpc, signedWord, unsignedWord, words, ticksToPercent, ethCall, getLogs, blockNumber } from "./chain.mjs";
 import { fetchSwaps, measureExcursions, recommend } from "./calibrate.mjs";
+import {
+  fetchSwapsFromGraph,
+  fetchPoolFromGraph,
+  fetchTaxesFromGraph,
+  GRAPH_API_KEY,
+  AEGIS_SUBGRAPH_URL,
+} from "./graph.mjs";
+
+/// Every tool says which source answered it. Silently degrading to RPC while implying The Graph
+/// answered would make the provenance of a security recommendation unverifiable.
+const SOURCE = {
+  uniswapGraph: "The Graph — Uniswap v4 subgraph (decentralised network)",
+  aegisGraph: "The Graph — Aegis subgraph (Subgraph Studio)",
+  rpc: "direct RPC (fallback — no Graph credentials configured)",
+};
 
 const server = new McpServer({ name: "aegis-watchtower", version: "1.0.0" });
 
@@ -38,8 +53,36 @@ server.tool(
   { poolId: z.string().describe("The v4 poolId (0x-prefixed, 32 bytes)"), chain: chainArg, blocks: z.number().default(5000).describe("How many recent blocks to sample") },
   async ({ poolId, chain, blocks }) => {
     const { rpc: url, manager } = CHAINS[chain];
-    const { swaps, from, latest } = await fetchSwaps({ rpc: url, manager, pool: poolId, blocks, chunk: 1000, quiet: true });
-    if (swaps.length === 0) return text(`No swaps for ${poolId} on ${chain} in the last ${blocks} blocks. Try a larger window or a more active pool.`);
+
+    // The Graph is the source of record for swap history. RPC only answers when no key is set.
+    let swaps = [];
+    let source = SOURCE.uniswapGraph;
+    let from = 0;
+    let latest = 0;
+    let graphError = null;
+
+    if (GRAPH_API_KEY && chain === "unichain-mainnet") {
+      try {
+        swaps = await fetchSwapsFromGraph(poolId, { limit: Math.min(blocks, 3000) });
+        if (swaps.length) {
+          from = swaps[0].block;
+          latest = swaps[swaps.length - 1].block;
+        }
+      } catch (e) {
+        graphError = e.message;
+        swaps = [];
+      }
+    }
+
+    if (swaps.length === 0) {
+      source = GRAPH_API_KEY ? `${SOURCE.rpc} — Graph query failed: ${graphError ?? "no rows"}` : SOURCE.rpc;
+      const r = await fetchSwaps({ rpc: url, manager, pool: poolId, blocks, chunk: 1000, quiet: true });
+      swaps = r.swaps;
+      from = r.from;
+      latest = r.latest;
+    }
+
+    if (swaps.length === 0) return text(`No swaps for ${poolId} on ${chain}. Try a larger window or a more active pool.\n\nsource: ${source}`);
 
     const r = recommend(measureExcursions(swaps));
     if (!r) return text(`Only ${swaps.length} swaps found, in too few distinct blocks to calibrate. Widen the window.`);
@@ -70,7 +113,8 @@ server.tool(
         `The bound sits 3x above the 99.9th percentile of honest movement. That asymmetry is\n` +
         `deliberate: rejecting an honest trade fails visibly and immediately, while a slightly\n` +
         `loose bound still forecloses single-block manipulation, which needs moves an order of\n` +
-        `magnitude larger to pay for itself.`
+        `magnitude larger to pay for itself.\n\n` +
+        `source: ${source}`
     );
   }
 );
@@ -83,6 +127,34 @@ server.tool(
   { poolId: z.string(), chain: z.enum(["unichain-sepolia", "base-sepolia"]).default("unichain-sepolia"), hook: z.string().default(AEGIS_HOOK) },
   async ({ poolId, chain, hook }) => {
     const { rpc: url } = CHAINS[chain];
+
+    // Prefer the Aegis subgraph: it carries running totals and history the contract does not keep.
+    if (AEGIS_SUBGRAPH_URL) {
+      try {
+        const p = await fetchPoolFromGraph(poolId);
+        if (p) {
+          return text(
+            `Pool ${poolId} on ${chain}\n` +
+              `hook ${p.hook}\n\n` +
+              `  base fee              ${p.baseFee} (${(Number(p.baseFee) / 10000).toFixed(2)}%)\n` +
+              `  max fee               ${p.maxFee} (${(Number(p.maxFee) / 10000).toFixed(2)}%)\n` +
+              `  MEV tax per gwei      ${p.mevTaxPerGwei} fee units\n` +
+              `  MEV tax floor         ${p.mevTaxFloorGwei} gwei\n` +
+              `  max tick deviation    ${p.maxTickDeviation} (${ticksToPercent(Number(p.maxTickDeviation)).toFixed(2)}% per block)\n` +
+              `  min position age      ${p.minPositionAgeBlocks} blocks\n` +
+              `  oracle feed           ${p.oracleFeed && p.oracleFeed !== "0x" ? p.oracleFeed : "not attached"}\n\n` +
+              `  taxed swaps           ${p.totalTaxedSwaps}\n` +
+              `  MEV tax collected     ${p.totalTaxUnits} fee units\n` +
+              `  oracle checks skipped ${p.oracleSkips}${Number(p.oracleSkips) > 0 ? "  <- the cross-block guard was not active for those swaps" : ""}\n` +
+              `  worst block move seen ${p.maxObservedTickDelta} ticks\n\n` +
+              `source: ${SOURCE.aegisGraph}`
+          );
+        }
+      } catch (e) {
+        // fall through to RPC, and say so
+      }
+    }
+
     const id = poolId.replace(/^0x/, "").padStart(64, "0");
 
     // getPoolConfig(bytes32) -> the whole struct, rather than the nine-element autogenerated tuple
@@ -116,7 +188,8 @@ server.tool(
         `  cooldown              ${cfg.cooldownBlocks} blocks\n` +
         `  min position age      ${cfg.minPositionAgeBlocks} blocks${cfg.minPositionAgeBlocks === 0 ? " (JIT defense off)" : ""}\n\n` +
         `  MEV tax collected     ${tax} fee units\n` +
-        `                        = ${(tax / 10000).toFixed(4)}% of notional, summed over taxed swaps`
+        `                        = ${(tax / 10000).toFixed(4)}% of notional, summed over taxed swaps\n\n` +
+        `source: ${AEGIS_SUBGRAPH_URL ? SOURCE.rpc + " (Aegis subgraph query failed)" : SOURCE.rpc}`
     );
   }
 );
