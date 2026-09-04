@@ -6,3 +6,7 @@ docs/
 .env.*
 node_modules/
 *.log
+
+# subgraph build artifacts
+subgraph/generated/
+subgraph/build/

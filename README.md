@@ -158,6 +158,20 @@ an MCP server puts them in front of an AI agent, so an LP can ask in plain langu
               subgraph ──▶ MCP server ──▶ agent
 ```
 
+## Watchtower — the agent layer
+
+[`WATCHTOWER.md`](./WATCHTOWER.md). A subgraph, a calibration engine and an MCP server.
+
+The calibration engine closes a gap this project openly had. The breaker's bound trades safety
+against liveness, and "per-pool calibration" was the answer without any account of *how*. The
+engine replays the hook's checkpoint logic over a real pool's swap history and derives the bound
+from the observed distribution of honest intra-block excursions.
+
+Applied to the busiest live v4 pools on Unichain mainnet, honest blocks move by **single-digit
+ticks**, with a worst observed excursion of 39 ticks (0.39%) — which means **this project's own
+default of 500 ticks is 2.5x to 5x looser than any of those pools need**. The placeholder was
+wrong in the safe direction, and there is now a measurement to replace it with.
+
 ## Prize tracks targeted
 
 | Sponsor | Track | How Aegis qualifies |

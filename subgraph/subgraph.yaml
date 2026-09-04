@@ -1,0 +1,40 @@
+specVersion: 1.0.0
+description: >
+  Aegis watchtower. Indexes what a self-defending Uniswap v4 pool decided and why, so the data
+  can answer whether a pool is under attack and how its circuit breaker should be tuned.
+repository: https://github.com/Matgothmog/aegis-hook
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: AegisHook
+    network: unichain-sepolia
+    source:
+      address: "0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0"
+      abi: AegisHook
+      startBlock: 61674705
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/mapping.ts
+      entities:
+        - Pool
+        - MevTax
+        - Rejection
+        - BlockCheckpoint
+        - PoolDayData
+      abis:
+        - name: AegisHook
+          file: ./abis/AegisHook.json
+      eventHandlers:
+        - event: PoolConfigured(indexed bytes32,(uint24,uint24,uint24,uint24,uint32,uint32,uint128,bool))
+          handler: handlePoolConfigured
+        - event: BlockCheckpointed(indexed bytes32,uint64,int24)
+          handler: handleBlockCheckpointed
+        - event: MevTaxApplied(indexed bytes32,indexed address,uint256,uint24,uint24)
+          handler: handleMevTaxApplied
+        - event: SwapRejected(indexed bytes32,indexed address,uint8,int256,int256)
+          handler: handleSwapRejected
+        - event: GuardianHalt(indexed bytes32,uint64)
+          handler: handleGuardianHalt

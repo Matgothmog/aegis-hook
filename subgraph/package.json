@@ -1,0 +1,16 @@
+{
+  "name": "aegis-subgraph",
+  "version": "1.0.0",
+  "description": "Watchtower subgraph for the Aegis Uniswap v4 hook",
+  "license": "MIT",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy aegis-hook",
+    "auth": "graph auth"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.98.1",
+    "@graphprotocol/graph-ts": "0.38.1"
+  }
+}

@@ -1,0 +1,108 @@
+# Aegis watchtower schema.
+#
+# Shaped around the two questions the indexed data has to answer:
+#   1. Is this pool under attack right now?          -> Rejection, MevTax, PoolDayData
+#   2. How should this pool's defenses be tuned?     -> BlockCheckpoint.tickDelta
+#
+# The second is the one that matters. The hook's design admits that the circuit breaker has a
+# liveness cost -- too tight a bound and honest trades are rejected -- and answers it with
+# "per-pool calibration" without ever saying how you would calibrate. `tickDelta` is how: the
+# distribution of real per-block price movement for a pool is exactly the evidence needed to
+# place a bound above honest volatility and below what manipulation requires.
+
+type Pool @entity(immutable: false) {
+  "The v4 poolId"
+  id: Bytes!
+  hook: Bytes!
+
+  # --- configuration, from PoolConfigured ---
+  baseFee: Int!
+  maxFee: Int!
+  mevTaxPerGwei: Int!
+  maxTickDeviation: Int!
+  cooldownBlocks: Int!
+  minPositionAgeBlocks: Int!
+  maxVolumePerBlock: BigInt!
+  configuredAtBlock: BigInt!
+  reconfigurations: Int!
+
+  # --- running totals ---
+  totalTaxUnits: BigInt!
+  totalTaxedSwaps: Int!
+  totalPriorityFeeWei: BigInt!
+  totalRejections: Int!
+  rejectionsByDeviation: Int!
+  rejectionsByVolume: Int!
+  rejectionsByHalt: Int!
+  rejectionsByPositionAge: Int!
+
+  # --- breaker state ---
+  haltedUntilBlock: BigInt!
+
+  # --- last observed tick, used to derive per-block movement ---
+  lastTick: Int!
+  lastCheckpointBlock: BigInt!
+  "Largest absolute per-block tick move ever observed. The empirical floor for maxTickDeviation."
+  maxObservedTickDelta: Int!
+
+  checkpoints: [BlockCheckpoint!]! @derivedFrom(field: "pool")
+  taxEvents: [MevTax!]! @derivedFrom(field: "pool")
+  rejections: [Rejection!]! @derivedFrom(field: "pool")
+  dayData: [PoolDayData!]! @derivedFrom(field: "pool")
+}
+
+"A searcher's priority-fee bid, and what the pool charged them for it."
+type MevTax @entity(immutable: true) {
+  id: Bytes!
+  pool: Pool!
+  sender: Bytes!
+  "The bid, in wei per gas. On a priority-ordered chain this is a truthful lower bound on expected MEV."
+  priorityFeeWei: BigInt!
+  "Total fee applied to this swap, in hundredths of a bip."
+  feeCharged: Int!
+  "The portion above the base fee -- what the bid actually cost the searcher."
+  taxUnits: Int!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+"A swap the hook refused, and why."
+type Rejection @entity(immutable: true) {
+  id: Bytes!
+  pool: Pool!
+  sender: Bytes!
+  "PriceDeviation | VolumeLimit | GuardianHalt | PositionTooYoung"
+  reason: String!
+  observed: BigInt!
+  bound: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+"The pool's opening tick for a block, and how far it moved since the previous one."
+type BlockCheckpoint @entity(immutable: true) {
+  id: Bytes!
+  pool: Pool!
+  blockNumber: BigInt!
+  tick: Int!
+  "Signed move from the previous checkpoint. The calibration signal."
+  tickDelta: Int!
+  "Absolute move, so percentile queries do not have to handle sign."
+  absTickDelta: Int!
+  "Blocks elapsed since the previous checkpoint, so bursty and quiet periods are distinguishable."
+  blocksSincePrevious: BigInt!
+  timestamp: BigInt!
+}
+
+type PoolDayData @entity(immutable: false) {
+  id: Bytes!
+  pool: Pool!
+  date: Int!
+  taxUnits: BigInt!
+  taxedSwaps: Int!
+  rejections: Int!
+  maxAbsTickDelta: Int!
+  checkpoints: Int!
+}

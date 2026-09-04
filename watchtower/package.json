@@ -1,0 +1,15 @@
+{
+  "name": "aegis-watchtower",
+  "version": "1.0.0",
+  "description": "Calibration engine and MCP server for the Aegis Uniswap v4 hook",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "aegis-watchtower": "./mcp-server.mjs" },
+  "scripts": {
+    "calibrate": "node calibrate.mjs",
+    "mcp": "node mcp-server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
