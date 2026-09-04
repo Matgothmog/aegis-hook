@@ -1,0 +1,28 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+solc_version = "0.8.26"
+evm_version = "cancun"
+via_ir = false
+optimizer = true
+optimizer_runs = 800
+
+ffi = false
+fuzz = { runs = 500 }
+gas_limit = "3000000000"
+
+[profile.ci]
+fuzz = { runs = 10_000 }
+via_ir = true
+
+[profile.deep]
+fuzz = { runs = 100_000 }
+
+[rpc_endpoints]
+unichain_sepolia = "https://sepolia.unichain.org"
+base_sepolia = "https://sepolia.base.org"
+sepolia = "https://rpc.sepolia.org"
