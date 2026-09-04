@@ -61,7 +61,8 @@ slide the submission is built around — if it lands nowhere else, it lands here
       `afterSwap` revert genuinely unwinds
 - [x] Dry run clean: salt `0x374c`, permission bits `10944` = `0x2AC0`
 - [x] Broadcast for real — live at `0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`, verified onchain
-- [ ] Seed pools + liquidity, run live swaps against the deployed hook
+- [x] Seed pools + liquidity, run live swaps against the deployed hook
+- [x] **Gate met**: live tx shows a searcher bidding 2 gwei charged 23000 vs 3000 for honest flow
 - [ ] Verify contracts on the explorer
 - [ ] Secondary deploy: Arc testnet
 - [ ] Subgraph: index `MevTaxApplied`, `SwapRejected`, `BlockCheckpointed`

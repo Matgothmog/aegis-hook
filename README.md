@@ -185,6 +185,26 @@ wrong.
 `AegisHook` is deployed at
 [`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`](https://sepolia.uniscan.xyz/address/0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0)
 against the real v4 PoolManager, with the permission bits `0x2AC0` encoded in its own address.
+
+**The tax works onchain, not just in tests.** Two swaps against the same live pool, differing
+only in what the sender bid for block position:
+
+| Trader | Priority bid | Fee charged |
+|---|---|---|
+| Honest user | ~0 | **3,000** (0.30%) — base fee only |
+| Searcher | 2 gwei | **23,000** (2.30%) |
+
+Transaction
+[`0x0c3730a4…8aff`](https://sepolia.uniscan.xyz/tx/0x0c3730a435bcd0adc15f401777aa2ecd3d55086ae2d0fb83bea737daeaaa8aff)
+emitted `MevTaxApplied(priorityFeeWei: 2000000000, feeCharged: 23000, taxUnits: 20000)`.
+7.7x the fee, set by the searcher's own bid, paid to the LPs.
+
+Reproduce it with [`script/DemoSwap.s.sol`](./script/DemoSwap.s.sol) at any `--priority-gas-price`.
+
+> Note for anyone verifying: Unichain Sepolia runs with `baseFeePerGas = 0`, so `priorityFee()`
+> there is the whole gas price rather than the usual difference. The mechanism is unaffected, but
+> it is worth knowing before reading the numbers.
+
 See [DEPLOYING.md](./DEPLOYING.md).
 
 ## Status

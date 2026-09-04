@@ -126,3 +126,39 @@ and `guardian()` read back correctly, and the address's low 14 bits equal what
 `getHookPermissions()` declares — which is what makes v4 invoke the callbacks at all.
 
 Deployment cost 0.0000015 ETH.
+
+## Live demo pool
+
+Seeded by `script/SeedPool.s.sol`, driven by `script/DemoSwap.s.sol`.
+
+| | |
+|---|---|
+| poolId | `0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f` |
+| token0 (AEGA) | `0x0aa1c458587bedb6dd6931dd023f213add61f749` |
+| token1 (AEGB) | `0xe4d271184bbfa35806d1a478e110cf112e35d0c3` |
+| PoolSwapTest | `0xe6e7559887910ce1a7fa5db71fb1cbd60e939ff0` |
+| PoolModifyLiquidityTest | `0x7f97f4ceb7e6b98e6df2535a9b39a970c530bd90` |
+
+```bash
+export HOOK=0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0
+export SWAP_ROUTER=0xe6e7559887910ce1a7fa5db71fb1cbd60e939ff0
+export TOKEN0=0x0aa1c458587bedb6dd6931dd023f213add61f749
+export TOKEN1=0xe4d271184bbfa35806d1a478e110cf112e35d0c3
+
+# honest user: charged the 3000 base fee
+forge script script/DemoSwap.s.sol --rpc-url unichain_sepolia --broadcast \
+  --account aegis-deployer --password aegis-testnet-only
+
+# searcher bidding 2 gwei: charged 23000
+forge script script/DemoSwap.s.sol --rpc-url unichain_sepolia --broadcast \
+  --account aegis-deployer --password aegis-testnet-only \
+  --priority-gas-price 2gwei --with-gas-price 3gwei
+
+# read the accumulated tax
+cast call $HOOK "mevTaxUnitsCollected(bytes32)(uint256)" \
+  0x578a0a4f0ac22902b8d8881558e5a246f960933f7c4d994dcd563765de5f252f \
+  --rpc-url https://sepolia.unichain.org
+```
+
+Give the RPC a few seconds after a broadcast before reading state back — querying immediately
+can hit a node that has not caught up and return a stale zero.
