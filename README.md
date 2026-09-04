@@ -180,6 +180,13 @@ Worth being precise about, because it is easy to oversell:
 Neither mechanism subsumes the other, and claiming either one alone is sufficient would be
 wrong.
 
+## Live on Unichain Sepolia
+
+`AegisHook` is deployed at
+[`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`](https://sepolia.uniscan.xyz/address/0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0)
+against the real v4 PoolManager, with the permission bits `0x2AC0` encoded in its own address.
+See [DEPLOYING.md](./DEPLOYING.md).
+
 ## Status
 
 Day 2 of 10, roadmap through Day 7 largely complete. 37 tests passing, three attacks

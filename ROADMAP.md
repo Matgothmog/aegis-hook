@@ -60,7 +60,7 @@ slide the submission is built around — if it lands nowhere else, it lands here
       live manager accepts our mined hook, honours the `beforeSwap` fee override, and an
       `afterSwap` revert genuinely unwinds
 - [x] Dry run clean: salt `0x374c`, permission bits `10944` = `0x2AC0`
-- [ ] Broadcast for real (needs a funded key — see DEPLOYING.md)
+- [x] Broadcast for real — live at `0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`, verified onchain
 - [ ] Seed pools + liquidity, run live swaps against the deployed hook
 - [ ] Verify contracts on the explorer
 - [ ] Secondary deploy: Arc testnet

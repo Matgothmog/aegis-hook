@@ -109,3 +109,20 @@ forge test --match-path 'test/fork/*' -vv
 It confirms the live PoolManager accepts a hook mined by our library, that a dynamic-fee pool
 honours the per-swap fee override returned from `beforeSwap`, and that a revert in `afterSwap`
 genuinely unwinds the swap. It skips itself if the RPC is unreachable.
+
+## Live deployments
+
+| | |
+|---|---|
+| Chain | Unichain Sepolia (1301) |
+| AegisHook | [`0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0`](https://sepolia.uniscan.xyz/address/0x99c92c4eF032a15E2a6f0BfeBA276666148AeAc0) |
+| PoolManager | `0x00B036B58a818B1BC34d502D3fE730Db729e62AC` |
+| Guardian | `0x504D0A8ff1775bA0CF71785AD24E38A4EC7f9388` |
+| CREATE2 salt | `0x0b23` |
+| Permission bits | `0x2AC0` (10944) |
+
+Verified onchain rather than taken from the deploy log: the contract has code, `poolManager()`
+and `guardian()` read back correctly, and the address's low 14 bits equal what
+`getHookPermissions()` declares — which is what makes v4 invoke the callbacks at all.
+
+Deployment cost 0.0000015 ETH.
