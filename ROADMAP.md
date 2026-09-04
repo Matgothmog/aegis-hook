@@ -50,12 +50,21 @@ with a broken `forge test`.
 **Gate:** the benchmark table shows attacker profit going negative. This is the
 slide the submission is built around — if it lands nowhere else, it lands here.
 
-## Day 7 — ship it onchain
-- [ ] Deploy scripts, Unichain Sepolia first (priority ordering is the premise)
+## Day 7 — ship it onchain (mostly done early)
+- [x] `AegisDeploy` library — CREATE2 salt mining, shared by the script *and* the tests, so the
+      tested path is the deployed path
+- [x] `DeployAegis.s.sol` with verified PoolManager addresses per chain
+- [x] `test/Deploy.t.sol` — closes the gap where every other test used `deployCodeTo` (which
+      etches bytecode and skips address derivation entirely, the part most likely to fail)
+- [x] `test/fork/UnichainSepolia.t.sol` — against the **real** deployed v4 on chain 1301:
+      live manager accepts our mined hook, honours the `beforeSwap` fee override, and an
+      `afterSwap` revert genuinely unwinds
+- [x] Dry run clean: salt `0x374c`, permission bits `10944` = `0x2AC0`
+- [ ] Broadcast for real (needs a funded key — see DEPLOYING.md)
 - [ ] Seed pools + liquidity, run live swaps against the deployed hook
+- [ ] Verify contracts on the explorer
 - [ ] Secondary deploy: Arc testnet
-- [ ] Subgraph: index `FirewallEvent`, `BreakerTripped`, `MevTaxCollected`
-- [ ] Verify contracts
+- [ ] Subgraph: index `MevTaxApplied`, `SwapRejected`, `BlockCheckpointed`
 
 **Gate:** a real transaction on a public testnet shows a tax charged.
 

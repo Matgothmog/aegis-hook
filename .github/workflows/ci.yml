@@ -18,8 +18,27 @@ jobs:
       - name: Build
         run: forge build --sizes
 
-      - name: Test
-        run: forge test -vv
+      - name: Unit and deployment tests
+        run: forge test --no-match-path 'test/fork/*' -vv
 
       - name: Attack lab benchmark
-        run: forge test --match-contract SandwichTest -vv
+        run: |
+          forge test --match-contract SandwichTest -vv
+          forge test --match-contract JitLiquidityTest -vv
+          forge test --match-contract OracleManipulationTest -vv
+
+  fork:
+    runs-on: ubuntu-latest
+    # Runs against the live Unichain Sepolia deployment. Non-blocking: a public RPC being rate
+    # limited is not a reason to fail the build, but a real regression here matters, so it stays
+    # visible rather than being deleted.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Fork test against live v4
+        run: forge test --match-path 'test/fork/*' -vv

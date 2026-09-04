@@ -182,16 +182,29 @@ wrong.
 
 ## Status
 
-Day 2 of 10. Hook implemented, 31 tests passing, three attacks benchmarked against a
-control pool with real numbers.
+Day 2 of 10, roadmap through Day 7 largely complete. 37 tests passing, three attacks
+benchmarked against a control pool, and the deploy path verified against the real Uniswap v4
+deployment on Unichain Sepolia — not just against a local mock.
 See [ROADMAP.md](./ROADMAP.md).
 
 ## Build
 
 ```bash
 forge build
-forge test
-forge test --match-contract AttackLab -vvv   # the benchmark
+forge test --no-match-path 'test/fork/*'     # 37 tests
+forge test --match-contract SandwichTest -vv # the benchmark
+forge test --match-path 'test/fork/*' -vv    # against live v4 on Unichain Sepolia
+```
+
+## Deploy
+
+See [DEPLOYING.md](./DEPLOYING.md). Short version: v4 reads a hook's permissions from its own
+address, so deployment means mining a CREATE2 salt until the address bits match what the contract
+claims. The mining lives in a library that the deploy script and the tests both call, so the
+tested path is the deployed path.
+
+```bash
+forge script script/DeployAegis.s.sol --rpc-url unichain_sepolia   # dry run, no key needed
 ```
 
 ## License
