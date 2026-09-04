@@ -158,6 +158,23 @@ an MCP server puts them in front of an AI agent, so an LP can ask in plain langu
               subgraph ──▶ MCP server ──▶ agent
 ```
 
+## Also live on Arc (Circle)
+
+Arc has no Uniswap v4 deployment, so Aegis
+[brought one](https://docs.arc.io): PoolManager `0x94f5CB26…3Fc7` and hook `0x84e19075…2AC0` on
+chain 5042002, configured for a stablecoin pair — 0.05% base fee, a 50-tick breaker, JIT lockup on.
+
+**The port found a bug.** Arc runs a flat 20 gwei base fee and its *median* transaction bids
+10 gwei of priority (sampled: 666 txs over 40 blocks). Charging the raw priority fee — what the
+Unichain deployment did — taxes that median swap to the ceiling, making every ordinary trade pay
+the maximum. The tax is meant to price the *excess* a searcher pays to win ordering, and on a chain
+with an ambient tip that excess is not the whole priority fee. `mevTaxFloorGwei` fixes it; a floor
+of 0 reproduces the old behaviour, so Unichain is unchanged.
+
+Verified on the live Arc pool: a swap at Arc's median 10 gwei pays **zero** tax, and one bidding
+26 gwei — a single gwei above the floor — pays exactly **10,000** units. See
+[DEPLOYING.md](./DEPLOYING.md).
+
 ## Console
 
 An interactive page for the deployed pool:

@@ -64,7 +64,8 @@ slide the submission is built around — if it lands nowhere else, it lands here
 - [x] Seed pools + liquidity, run live swaps against the deployed hook
 - [x] **Gate met**: live tx shows a searcher bidding 2 gwei charged 23000 vs 3000 for honest flow
 - [ ] Verify contracts on the explorer
-- [ ] Secondary deploy: Arc testnet
+- [x] Secondary deploy: Arc testnet — brought our own PoolManager, and the port exposed
+      and fixed a real design flaw in the tax (see DEPLOYING.md)
 - [ ] Subgraph: index `MevTaxApplied`, `SwapRejected`, `BlockCheckpointed`
 
 **Gate:** a real transaction on a public testnet shows a tax charged.

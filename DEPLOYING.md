@@ -212,3 +212,32 @@ where ordering is proposer-determined rather than a priority-fee auction. The me
 executes and still charges, but the argument that a bid is a *truthful* signal is a property of
 priority ordering, which Unichain has and Arc does not. On Arc the circuit breaker and the
 position-age rule carry the defense.
+
+### Live on Arc testnet
+
+| | |
+|---|---|
+| Chain | Arc testnet (5042002) |
+| PoolManager | `0x94f5CB26384D025Ba617460233f4c8100A993Fc7` — **deployed by this project; Arc had no v4** |
+| AegisHook | `0x84e19075E873fc1458b484332D7D1487DC542AC0` |
+| poolId | `0x108f480a40c490e9a3348979b1b86763ac4bbb3f833af329e35d647c85864bbe` |
+| token0 / token1 | `0x7F97F4ce…bd90` / `0xD8cC7Cfb…669C` (6-decimal stablecoin stand-ins) |
+| swapRouter | `0xe4d271184BbFa35806d1A478e110cF112E35D0C3` |
+| Permission bits | `0x2AC0` (10944) |
+
+Config: 0.05% base fee, 2% ceiling, **tax floor 25 gwei**, 50-tick breaker (~0.5%), 5-block
+position age. Total cost of the whole deployment plus demo swaps: **0.32 USDC**.
+
+### The floor, verified onchain
+
+Two swaps against the live Arc pool, differing only in what they bid for block position:
+
+| Bid | Above the 25 gwei floor? | Tax charged |
+|---|---|---|
+| 10 gwei — Arc's *median* transaction | no | **0** |
+| 26 gwei — 1 gwei of genuine excess | +1 gwei | **10,000** (= 1 × `mevTaxPerGwei`) |
+
+The first swap is the one that matters. Before `mevTaxFloorGwei` existed, that ordinary trade
+would have been taxed 100,000 units, clamped to the ceiling, and charged the full 2%. It now pays
+the 0.05% base fee, while a searcher bidding a single gwei above ambient pays precisely for the
+excess. The fix is not theoretical; both numbers came off the chain.

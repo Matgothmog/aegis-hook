@@ -25,7 +25,8 @@ import {AegisHook} from "../src/AegisHook.sol";
 contract DemoSwap is Script {
     using PoolIdLibrary for PoolKey;
 
-    int24 constant TICK_SPACING = 60;
+    /// @dev Chain-dependent: Unichain's demo pool uses 60, Arc's stablecoin pool uses 10.
+    int24 constant DEFAULT_TICK_SPACING = 60;
 
     function run() external {
         AegisHook hook = AegisHook(vm.envAddress("HOOK"));
@@ -36,7 +37,7 @@ contract DemoSwap is Script {
             currency0: Currency.wrap(vm.envAddress("TOKEN0")),
             currency1: Currency.wrap(vm.envAddress("TOKEN1")),
             fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
-            tickSpacing: TICK_SPACING,
+            tickSpacing: int24(int256(vm.envOr("TICK_SPACING", uint256(uint24(DEFAULT_TICK_SPACING))))),
             hooks: IHooks(address(hook))
         });
         PoolId id = key.toId();
