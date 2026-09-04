@@ -10,3 +10,4 @@ node_modules/
 # subgraph build artifacts
 subgraph/generated/
 subgraph/build/
+*.png

@@ -158,6 +158,16 @@ an MCP server puts them in front of an AI agent, so an LP can ask in plain langu
               subgraph ──▶ MCP server ──▶ agent
 ```
 
+## Console
+
+An interactive page for the deployed pool:
+[claude.ai/code/artifact/d54a8daf](https://claude.ai/code/artifact/d54a8daf-da30-4715-b22c-b87297336fb9).
+
+The fee simulator is genuinely live — it runs the contract's real formula in the browser, so you
+can drag a searcher's bid and watch the fee it buys them, with the two on-chain-verified points
+marked. Contract state is a labelled snapshot rather than a fake ticker: a published page cannot
+reach an RPC, and pretending otherwise would be the sort of theatre this project exists to avoid.
+
 ## Watchtower — the agent layer
 
 [`WATCHTOWER.md`](./WATCHTOWER.md). A subgraph, a calibration engine and an MCP server.
