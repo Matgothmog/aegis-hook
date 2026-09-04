@@ -28,12 +28,45 @@ Unichain is the chain whose sequencer actually provides it.
 > Note the address `0x1F98400000000000000000000000000000000004`, which several sources give for
 > Unichain — that is the **mainnet** PoolManager. It has no code on Sepolia. Verify before trusting.
 
-## 1. Get testnet ETH
+## 1. Get a funded key
+
+### Generate one, without ever printing the private key
+
+```bash
+cast wallet new ~/.foundry/keystores aegis-deployer
+```
+
+This prompts for a password, prints only the **address**, and writes the encrypted key to
+`~/.foundry/keystores/aegis-deployer`. The private key never reaches your terminal, your shell
+history, or an environment variable.
+
+Use a **fresh** key. Never a wallet holding real funds — a deployer key ends up in scripts, CI
+logs and screenshots, so treat it as disposable from the start.
+
+### Fund it
 
 Unichain Sepolia is a testnet; the ETH is free and worth nothing.
 
-- <https://faucet.quicknode.com/unichain/sepolia>
-- Or bridge Ethereum Sepolia ETH via <https://bridge.unichain.org>
+| Faucet | Notes |
+|---|---|
+| <https://ethglobal.com/faucet/unichain-sepolia-1301> | Start here — for hackathon participants, no mainnet balance required |
+| <https://www.l2faucet.com/unichain> | Device attestation instead of a mainnet balance |
+| <https://console.optimism.io/faucet> | Superchain faucet, 0.05 ETH / 24h |
+| <https://faucet.quicknode.com/unichain/sepolia> | One drip / 12h |
+| <https://faucets.chain.link/unichain-testnet> | Chainlink; also useful for the Chainlink track |
+
+Several faucets require a small **mainnet** ETH balance as anti-sybil. The first two do not.
+
+0.05 ETH is ample: the deploy itself costs ~0.0000217 ETH, and the rest covers pool setup,
+liquidity and demo swaps.
+
+Alternatively bridge Ethereum Sepolia ETH via <https://bridge.unichain.org>.
+
+### Check it landed
+
+```bash
+cast balance <your-address> --rpc-url https://sepolia.unichain.org --ether
+```
 
 ## 2. Dry run — costs nothing, needs no key
 
@@ -49,12 +82,15 @@ sender yet.
 ## 3. Deploy
 
 ```bash
-export PRIVATE_KEY=0x...
 forge script script/DeployAegis.s.sol \
   --rpc-url unichain_sepolia \
   --broadcast \
-  --private-key $PRIVATE_KEY
+  --account aegis-deployer
 ```
+
+`--account` reads the encrypted keystore and prompts for the password, so the private key never
+becomes an environment variable or a shell-history entry. `--private-key $PRIVATE_KEY` also works
+but leaves the key in both.
 
 The guardian defaults to the broadcasting address. Override with `GUARDIAN=0x...`, and the target
 chain with `POOL_MANAGER=0x...`.
