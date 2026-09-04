@@ -237,3 +237,33 @@ forge script script/DeployAegis.s.sol --rpc-url unichain_sepolia   # dry run, no
 ## License
 
 MIT
+
+## Prior art and attribution
+
+Being explicit about what is borrowed and what is not.
+
+**The MEV tax is not an original idea.** It comes from
+[*Priority Is All You Need*](https://www.paradigm.xyz/2024/06/priority-is-all-you-need) by Dan
+Robinson and Dave White (Paradigm). The insight that a searcher's priority-fee bid, under
+priority ordering, is a truthful self-reported lower bound on the MEV they expect — and can
+therefore be charged against — is theirs. Aegis implements it as a v4 hook and measures it.
+
+**Circuit breakers and per-block rate limits** are a long-standing DeFi security pattern, not
+something invented here. Likewise **minimum position age as a JIT-liquidity mitigation** has been
+proposed before.
+
+**What this project contributes:**
+
+- The **attack lab** — a reusable control-pool harness that runs working attacker contracts
+  against a protected and an unprotected pool and reports attacker PnL for both. The measurement
+  methodology is the contribution; a defense that is not measured against a control is a claim.
+- **Numbers** for these mechanisms that had not been published: a sandwich going from +0.068972
+  to -0.230778 token0, and a single-block price manipulation from -48.9% to a bounded -4.9%.
+- The observation that the breaker **cannot latch**: deviation is only visible in `afterSwap`, and
+  reverting there unwinds the flag write too, so reverting must *be* the defense rather than the
+  trigger for one. Implementations that write a "tripped" flag on that path do not work.
+- The **composition** — MEV tax, circuit breaker and JIT age in one hook, with an explicit
+  argument for which attack regime each one covers and where each is useless.
+
+**Dependencies:** Uniswap `v4-core` and `v4-periphery`, `forge-std`, `solmate`, tracked as git
+submodules. All 1,828 lines under `src/`, `test/` and `script/` were written for this hackathon.
