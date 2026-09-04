@@ -1,9 +1,10 @@
-# 10-day plan
+# Plan
 
-Solo build. The rule for every day: **the demo must stay runnable.** Never end a day
-with a broken `forge test`.
+Solo build, ten days. Ordered by dependency, not by calendar — the numbering is sequence, not
+elapsed time. The standing rule: **the demo must stay runnable.** Never stop with a broken
+`forge test`.
 
-## Day 1–2 — foundations ✅
+## 1 · Foundations ✅
 - [x] Repo, Foundry, v4-core + v4-periphery wired
 - [x] Own `BaseHook` — v4-periphery removed theirs, so Aegis carries an auditable one in-repo
 - [x] `AegisHook` with permissions declared and asserted against the address bits
@@ -12,7 +13,7 @@ with a broken `forge test`.
 
 **Gate:** ✅ a swap executes through AegisHook on a local pool.
 
-## Day 3–4 — core mechanism ✅ (pulled forward)
+## 2 · Core mechanism ✅
 - [x] MEV tax in `beforeSwap`, `OVERRIDE_FEE_FLAG` returned correctly
 - [x] Reject static-fee init in `beforeInitialize` — fail closed rather than silently inert
 - [x] Per-block tick checkpoint + deviation breaker
@@ -32,7 +33,7 @@ with a broken `forge test`.
 - [ ] Chainlink feed as an external reference, to catch manipulation walked across blocks —
       the current breaker only sees within-block movement.
 
-## Day 5–6 — attack lab (the differentiator)
+## 3 · Attack lab — the differentiator
 - [x] `SandwichTest` — frontrun / victim / backrun, measured PnL, vanilla vs Aegis
       (vanilla +0.0690 token0, Aegis -0.2308 token0)
 - [x] `JitLiquidityTest` — supply before, withdraw after; vanilla bot takes +0.015184 token0
@@ -50,7 +51,7 @@ with a broken `forge test`.
 **Gate:** the benchmark table shows attacker profit going negative. This is the
 slide the submission is built around — if it lands nowhere else, it lands here.
 
-## Day 7 — ship it onchain (mostly done early)
+## 4 · Ship it onchain ✅
 - [x] `AegisDeploy` library — CREATE2 salt mining, shared by the script *and* the tests, so the
       tested path is the deployed path
 - [x] `DeployAegis.s.sol` with verified PoolManager addresses per chain
@@ -70,7 +71,7 @@ slide the submission is built around — if it lands nowhere else, it lands here
 
 **Gate:** a real transaction on a public testnet shows a tax charged.
 
-## Day 8 — watchtower
+## 5 · Watchtower
 - [ ] MCP server over the subgraph: `getPoolThreatLevel`, `getRecentAttacks`,
       `getTaxCollected`
 - [ ] Agent answers "is this pool under attack right now?" from live data
@@ -79,15 +80,15 @@ slide the submission is built around — if it lands nowhere else, it lands here
 
 **Gate:** ask the agent a question, get an answer grounded in chain state.
 
-## Day 9 — one page, no more
+## 6 · One page, no more
 - [ ] Single dashboard: pool state, breaker status, tax collected, recent blocks
 - [ ] Live swap button, and a "run the attack" button that visibly fails
 
-**Hard scope limit.** One page. No auth, no routing, no design system. If Day 9 runs
+**Hard scope limit.** One page. No auth, no routing, no design system. If this stage runs
 long, the dashboard gets cut before anything else — the Foundry benchmark is the
-real proof and it already exists by Day 6.
+real proof and it already exists by stage 3.
 
-## Day 10 — submission
+## 7 · Submission
 - [ ] Demo video (≤ 4 min): problem, the mechanism in one diagram, the attack running
       and failing, the agent answering
 - [ ] README final pass with real numbers substituted in
@@ -99,10 +100,10 @@ real proof and it already exists by Day 6.
 
 | Risk | Mitigation |
 |---|---|
-| Hook address mining is fiddly and eats a day | Do it Day 1, not Day 7 |
+| Hook address mining is fiddly and can eat a day | Do it first, not just before deploying |
 | v4 periphery API drift vs. tutorials | Pin dependency commits; read `lib/` source, not blog posts |
 | MEV tax needs priority ordering to be honest | Target Unichain; state the assumption plainly rather than overclaiming |
-| Attack lab is where the value is but sits mid-schedule | If behind by Day 5, cut the dashboard and Arc deploy, never the lab |
+| Attack lab is where the value is but sits mid-sequence | If behind, cut the dashboard and the Arc deploy, never the lab |
 | Solo dev, 10 days, no slack | Every gate above is a checkpoint to cut scope at, not a deadline to slip |
 
 ## Explicitly out of scope

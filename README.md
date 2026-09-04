@@ -250,9 +250,8 @@ See [DEPLOYING.md](./DEPLOYING.md).
 
 ## Status
 
-Day 2 of 10, roadmap through Day 7 largely complete. 37 tests passing, three attacks
-benchmarked against a control pool, and the deploy path verified against the real Uniswap v4
-deployment on Unichain Sepolia — not just against a local mock.
+46 tests passing. Three attacks benchmarked against a control pool, the hook live on two chains,
+and the deploy path verified against real Uniswap v4 deployments rather than only a local mock.
 See [ROADMAP.md](./ROADMAP.md).
 
 ## Build
