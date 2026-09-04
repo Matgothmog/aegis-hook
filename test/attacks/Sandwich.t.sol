@@ -3,11 +3,7 @@ pragma solidity ^0.8.26;
 
 import {AegisFixture} from "../utils/AegisFixture.sol";
 import {AegisHook} from "../../src/AegisHook.sol";
-import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
-import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
-import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 
 /// @notice Attack lab — sandwich.
@@ -29,39 +25,8 @@ contract SandwichTest is AegisFixture {
 
     function setUp() public {
         _deployAegis();
-        _fund(attacker, 1_000e18);
-        _fund(victim, 1_000e18);
-    }
-
-    function _fund(address who, uint256 amt) internal {
-        MockERC20(Currency.unwrap(currency0)).mint(who, amt);
-        MockERC20(Currency.unwrap(currency1)).mint(who, amt);
-        vm.startPrank(who);
-        MockERC20(Currency.unwrap(currency0)).approve(address(swapRouter), type(uint256).max);
-        MockERC20(Currency.unwrap(currency1)).approve(address(swapRouter), type(uint256).max);
-        vm.stopPrank();
-    }
-
-    function _swapAs(address who, PoolKey memory k, bool zeroForOne, int256 amountSpecified)
-        internal
-        returns (BalanceDelta)
-    {
-        vm.prank(who);
-        return swapRouter.swap(
-            k,
-            SwapParams({
-                zeroForOne: zeroForOne,
-                amountSpecified: amountSpecified,
-                sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
-            }),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            ZERO_BYTES
-        );
-    }
-
-    function _bal(address who) internal view returns (uint256 t0, uint256 t1) {
-        t0 = MockERC20(Currency.unwrap(currency0)).balanceOf(who);
-        t1 = MockERC20(Currency.unwrap(currency1)).balanceOf(who);
+        _fundActor(attacker, 1_000e18);
+        _fundActor(victim, 1_000e18);
     }
 
     /// @notice Run the full three-swap sandwich. Returns attacker PnL denominated in token0.

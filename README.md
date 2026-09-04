@@ -74,21 +74,41 @@ would miss.
 
 The part that makes this a security project and not a fee experiment.
 
-The lab implements working attacker contracts — sandwich, JIT liquidity, oracle
-manipulation, donation griefing — and runs each one twice: against a vanilla v4 pool
-and against an Aegis pool. It reports attacker PnL in both cases.
-
-Current measured results — `forge test --match-contract SandwichTest -vv`:
+The lab implements working attacker contracts and runs each one twice: against a vanilla
+v4 pool and against an Aegis pool, reporting what the attacker actually walks away with.
 
 ```
 sandwich | frontrun 5e18, victim 10e18, searcher bids 3 gwei priority
+  vanilla pool      attacker PnL   +0.068972 token0
+  aegis  pool       attacker PnL   -0.230778 token0
 
-  vanilla pool   attacker PnL   +0.068972  token0
-  aegis pool     attacker PnL   -0.230778  token0
+JIT liquidity | 50000e18 supplied for one block around a 5e18 swap
+  vanilla pool      JIT bot PnL    +0.015184 token0   (~the entire 0.3% fee)
+  aegis  pool       withdrawal reverts - position too young
+
+single-block price manipulation | 400e18 against a 1000e18 book
+  vanilla pool      -6713 ticks in one block   ->  price x0.51  (-48.9%)
+  aegis  pool       reverted - bound is 500 ticks (-4.9%)
 ```
 
-The attack is profitable against an unprotected v4 pool and loss-making against Aegis.
-The searcher's own priority-fee bid is what pays for it.
+Three different attacks, three different defenses doing the work. The sandwich is priced out
+by the tax. The JIT bot is stopped by the position-age requirement. The manipulator is stopped
+by the breaker — and *only* by the breaker, since no fee is large enough to deter someone whose
+real profit is in a lending market elsewhere.
+
+**The manipulation result is worth reading twice.** 400e18 against this book moves an
+unprotected pool 48.9% inside a single block. Any contract reading a price from that pool in
+that block — a lending market sizing a loan, a liquidation engine, a settling derivative —
+reads a fabricated number. Aegis caps that at 4.9% per block, and paying more does not help:
+`test_breakerCannotBeBoughtOff` bids 500 gwei and is still refused, because a bound is not a
+price. Splitting the attack into eight smaller swaps inside the block does not help either —
+the checkpoint is per block, so the bound applies to cumulative movement.
+
+Critically, this does **not** pin the price. Across six blocks the same pool still moved
+-20.2%, because the checkpoint re-anchors each block. The breaker rate-limits *velocity*, not
+direction — a market that genuinely repriced can still get there, it just cannot arrive
+instantly. That distinction is the whole design, and `test_priceCanStillMoveAcrossBlocks` is
+what holds it honest.
 
 A defense that is not measured is a claim. This measures it.
 
@@ -162,7 +182,8 @@ wrong.
 
 ## Status
 
-Day 2 of 10. Hook implemented, 21 tests passing, sandwich benchmark producing real numbers.
+Day 2 of 10. Hook implemented, 31 tests passing, three attacks benchmarked against a
+control pool with real numbers.
 See [ROADMAP.md](./ROADMAP.md).
 
 ## Build

@@ -12,6 +12,7 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SwapParams, ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
+import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {AegisHook} from "../../src/AegisHook.sol";
 
 /// @notice Shared fixture: one Aegis-protected pool and one vanilla pool on the same
@@ -104,5 +105,58 @@ abstract contract AegisFixture is Test, Deployers {
     function _setPriorityFee(uint256 gweiBid) internal {
         vm.fee(1 gwei);
         vm.txGasPrice(1 gwei + gweiBid * 1 gwei);
+    }
+
+    // -------------------------------------------------------------------------
+    // Actors — every attack in the lab drives the pool through these, so an attacker
+    // is an ordinary account using ordinary routers, with no privileged access.
+    // -------------------------------------------------------------------------
+
+    function _fundActor(address who, uint256 amt) internal {
+        MockERC20(Currency.unwrap(currency0)).mint(who, amt);
+        MockERC20(Currency.unwrap(currency1)).mint(who, amt);
+        vm.startPrank(who);
+        MockERC20(Currency.unwrap(currency0)).approve(address(swapRouter), type(uint256).max);
+        MockERC20(Currency.unwrap(currency1)).approve(address(swapRouter), type(uint256).max);
+        MockERC20(Currency.unwrap(currency0)).approve(address(modifyLiquidityRouter), type(uint256).max);
+        MockERC20(Currency.unwrap(currency1)).approve(address(modifyLiquidityRouter), type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function _bal(address who) internal view returns (uint256 t0, uint256 t1) {
+        t0 = MockERC20(Currency.unwrap(currency0)).balanceOf(who);
+        t1 = MockERC20(Currency.unwrap(currency1)).balanceOf(who);
+    }
+
+    function _swapAs(address who, PoolKey memory k, bool zeroForOne, int256 amountSpecified)
+        internal
+        returns (BalanceDelta)
+    {
+        vm.prank(who);
+        return swapRouter.swap(
+            k,
+            SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: amountSpecified,
+                sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ZERO_BYTES
+        );
+    }
+
+    function _modifyAs(address who, PoolKey memory k, ModifyLiquidityParams memory params)
+        internal
+        returns (BalanceDelta)
+    {
+        vm.prank(who);
+        return modifyLiquidityRouter.modifyLiquidity(k, params, ZERO_BYTES);
+    }
+
+    /// @notice Sum of both token balances. The pools here start and stay near 1:1, so this is a
+    ///         serviceable value proxy for reporting PnL; it is not a general-purpose valuation.
+    function _portfolio(address who) internal view returns (uint256) {
+        (uint256 t0, uint256 t1) = _bal(who);
+        return t0 + t1;
     }
 }

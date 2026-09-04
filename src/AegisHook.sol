@@ -382,6 +382,15 @@ contract AegisHook is BaseHook {
         fee = cfg.baseFee + taxUnits;
     }
 
+    /// @dev Deliberately the same tuple and encoding as v4-core's own
+    ///      `Position.calculatePositionKey(owner, tickLower, tickUpper, salt)`, so the hook's
+    ///      notion of position identity is exactly the protocol's rather than a parallel one.
+    ///
+    ///      `owner` here is whoever called `modifyLiquidity` — under v4 that is the router, not
+    ///      the end user. That is not a flaw in this key, it is how v4 itself identifies
+    ///      positions: uniqueness between users of one router comes from `salt`, which
+    ///      PositionManager derives from the position's NFT id. A router that reuses salts
+    ///      across users would collide here exactly as it would collide in v4-core.
     function _positionKey(address owner, ModifyLiquidityParams calldata params) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(owner, params.tickLower, params.tickUpper, params.salt));
     }
